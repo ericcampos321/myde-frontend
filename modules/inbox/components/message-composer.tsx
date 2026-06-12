@@ -41,39 +41,41 @@ export function MessageComposer({ conversationId }: MessageComposerProps) {
   }
 
   return (
-    <div className="shrink-0 border-t border-border bg-surface px-4 py-3 space-y-2">
+    <div className="shrink-0 border-t border-border bg-surface px-4 py-3">
       {sendError && (
-        <p className="text-xs text-danger" role="alert">
+        <p className="mb-2 text-xs text-danger" role="alert">
           {sendError}
         </p>
       )}
 
-      <form onSubmit={handleSubmit} className="flex items-end gap-2">
-        <div className="flex-1">
-          <Textarea
-            ref={textareaRef}
-            value={text}
-            onChange={(e) => {
-              setText(e.target.value);
-              if (sendError) setSendError(null);
-            }}
-            onKeyDown={handleKeyDown}
-            placeholder="Digite uma mensagem…"
-            rows={1}
-            className="min-h-[40px] max-h-32"
-            disabled={isPending}
-            aria-label="Campo de mensagem"
-          />
+      <form onSubmit={handleSubmit}>
+        <div className="flex items-start gap-2">
+          <div className="min-w-0 flex-1">
+            <Textarea
+              ref={textareaRef}
+              value={text}
+              onChange={(e) => {
+                setText(e.target.value);
+                if (sendError) setSendError(null);
+              }}
+              onKeyDown={handleKeyDown}
+              placeholder="Digite uma mensagem…"
+              rows={1}
+              className="min-h-[40px] max-h-32"
+              disabled={isPending}
+              aria-label="Campo de mensagem"
+            />
+            <p className="mt-1.5 text-[10px] text-text-muted">Enter para enviar</p>
+          </div>
+
+          <div className="flex shrink-0 items-center gap-2 pt-[2px]">
+            <AiSuggestionButton conversationId={conversationId} onSuggestion={handleSuggestion} disabled={isPending} />
+            <Button type="submit" size="md" loading={isPending} disabled={!text.trim()} aria-label="Enviar mensagem">
+              <SendIcon />
+            </Button>
+          </div>
         </div>
-
-        <AiSuggestionButton conversationId={conversationId} onSuggestion={handleSuggestion} disabled={isPending} />
-
-        <Button type="submit" size="md" loading={isPending} disabled={!text.trim()} aria-label="Enviar mensagem">
-          <SendIcon />
-        </Button>
       </form>
-
-      <p className="text-[10px] text-text-muted">Enter para enviar · Shift+Enter para nova linha</p>
     </div>
   );
 }
