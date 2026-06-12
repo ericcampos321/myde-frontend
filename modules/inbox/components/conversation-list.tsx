@@ -16,7 +16,7 @@ interface ConversationListProps {
 
 export function ConversationList({ selectedId, onSelect }: ConversationListProps) {
   const [search, setSearch] = useState("");
-  const { data, isLoading, isError, refetch } = useConversationsQuery();
+  const { data, isLoading, isFetching, isError, refetch } = useConversationsQuery();
 
   const filtered = (data ?? []).filter((c) =>
     c.contactName.toLowerCase().includes(search.toLowerCase()) ||
@@ -25,6 +25,15 @@ export function ConversationList({ selectedId, onSelect }: ConversationListProps
 
   return (
     <div className="flex flex-col h-full overflow-hidden">
+      {/* Linha de sincronização em background — visível apenas durante refetch, sem bloquear UI */}
+      <div
+        className={[
+          "h-[2px] shrink-0 bg-accent transition-opacity duration-300",
+          isFetching && !isLoading ? "opacity-100" : "opacity-0",
+        ].join(" ")}
+        aria-hidden
+      />
+
       <div className="shrink-0 px-3 pt-3 pb-1">
         <p className="text-[11px] font-semibold uppercase tracking-wider text-text-muted px-0.5 mb-2">
           Conversas

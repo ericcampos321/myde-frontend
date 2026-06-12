@@ -11,6 +11,7 @@ export function useSendMessageMutation(conversationId: string) {
 
     onMutate: async (text: string) => {
       await queryClient.cancelQueries({ queryKey: messagesKey });
+      await queryClient.cancelQueries({ queryKey: ["conversations"] });
 
       const snapshot = queryClient.getQueryData<Message[]>(messagesKey);
 

@@ -16,9 +16,16 @@ interface MessageListProps {
 
 export function MessageList({ messages, isLoading, isError, onRetry }: MessageListProps) {
   const bottomRef = useRef<HTMLDivElement>(null);
+  const isMounted = useRef(false);
 
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+    if (!bottomRef.current) return;
+    // Primeira renderização com dados: posiciona sem animação.
+    // Mensagens subsequentes (novas chegando): scroll suave.
+    bottomRef.current.scrollIntoView({
+      behavior: isMounted.current ? "smooth" : "instant",
+    });
+    isMounted.current = true;
   }, [messages.length]);
 
   if (isLoading) return <MessageListSkeleton />;
