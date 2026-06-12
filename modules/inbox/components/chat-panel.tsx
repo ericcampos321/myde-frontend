@@ -6,6 +6,7 @@ import { MessageList } from "./message-list";
 import { MessageComposer } from "./message-composer";
 import { Avatar } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
 
 interface ChatPanelProps {
   conversationId: string;
@@ -32,7 +33,7 @@ export function ChatPanel({ conversationId, onBack }: ChatPanelProps) {
           <BackIcon />
         </Button>
 
-        {conversation && (
+        {conversation ? (
           <>
             <Avatar
               name={conversation.contactName}
@@ -48,10 +49,19 @@ export function ChatPanel({ conversationId, onBack }: ChatPanelProps) {
               </p>
             </div>
           </>
+        ) : (
+          <div className="flex items-center gap-3">
+            <Skeleton className="w-8 h-8 rounded-full shrink-0" />
+            <div className="space-y-1.5">
+              <Skeleton className="h-3 w-28" />
+              <Skeleton className="h-2.5 w-20" />
+            </div>
+          </div>
         )}
       </div>
 
       <MessageList
+        key={conversationId}
         messages={messages}
         isLoading={isLoading}
         isError={isError}
