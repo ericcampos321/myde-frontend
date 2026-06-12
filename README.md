@@ -75,6 +75,8 @@ A entrega está limpa nos três comandos.
 
 O arquivo `.env.example` contém a URL hospedada padrão. Copie para `.env.local` — este arquivo **não deve ser commitado** (já está no `.gitignore`).
 
+A **fonte principal de dados é a API real** via `NEXT_PUBLIC_API_URL`. Não há dados mockados no frontend. O `api-client.ts` mantém um fallback para `http://localhost:4000` apenas como conveniência de desenvolvimento (servidor local opcional do starter) — na ausência da API, as queries entram em estado de erro tratado pela UI, sem dados artificiais.
+
 ---
 
 ## Scripts disponíveis
@@ -129,14 +131,16 @@ modules/
       message-composer.tsx
       ai-suggestion-button.tsx
       no-conversation-selected.tsx
-    hooks/                — React Query por recurso
+    hooks/                — React Query por recurso (padrão use*Query / use*Mutation)
+      inbox-query-keys.ts   — Query keys centralizadas do domínio
       use-me-query.ts
       use-conversations-query.ts
       use-conversation-messages-query.ts
       use-send-message-mutation.ts
       use-ai-suggestion-mutation.ts
-    services/             — Funções de chamada HTTP
-      inbox.service.ts
+    services/             — Transporte e rotas da API
+      inbox.endpoints.ts    — Endpoints centralizados do domínio
+      inbox.service.ts      — Funções de chamada HTTP
     types/                — Contratos de domínio
       inbox.types.ts
     utils/
@@ -151,7 +155,9 @@ utils/
   cn.ts                   — Merge de classes Tailwind (clsx + tailwind-merge)
 ```
 
-> **Nota:** `lib/api.ts` e `app/connection-check.tsx` são artefatos do starter original que ainda estão presentes mas foram **supersedidos** pela arquitetura em `services/http/` e `modules/inbox/`. Não afetam o build nem o produto final.
+Não há código herdado do starter: a aplicação consome exclusivamente a arquitetura
+em `services/http/` e `modules/inbox/`. Endpoints e query keys são centralizados por
+domínio, sem strings de rota ou arrays de chave espalhados pelos hooks.
 
 ---
 
@@ -160,7 +166,9 @@ utils/
 | Camada | Onde | Regra |
 |---|---|---|
 | Transporte HTTP | `services/http/api-client.ts` | Única instância Axios. Nenhum outro arquivo importa axios diretamente |
+| Rotas da API | `modules/inbox/services/inbox.endpoints.ts` | Endpoints centralizados — services não montam URLs com strings soltas |
 | Chamadas de API | `modules/inbox/services/inbox.service.ts` | Funções puras: recebem parâmetros, retornam tipos do domínio |
+| Query keys | `modules/inbox/hooks/inbox-query-keys.ts` | Fonte única das keys — hooks e mutations não duplicam arrays |
 | Cache e estado servidor | `modules/inbox/hooks/use-*` | React Query — queries e mutations por recurso |
 | Componentes de domínio | `modules/inbox/components/` | Orquestram hooks e componentes de UI |
 | Componentes visuais | `components/ui/` | Recebem props, não conhecem domínio nem API |
@@ -190,10 +198,13 @@ React Query e suas subscriptions de polling exigem um contexto de browser. A sel
 
 ### Query keys
 
+Centralizadas em `modules/inbox/hooks/inbox-query-keys.ts` (`inboxQueryKeys`),
+consumidas pelos hooks e mutations — sem arrays duplicados:
+
 ```typescript
-["me"]                                      // Dados do atendente
-["conversations"]                           // Lista de conversas
-["conversation-messages", conversationId]   // Mensagens da conversa ativa
+inboxQueryKeys.me                              // ["me"]
+inboxQueryKeys.conversations                   // ["conversations"]
+inboxQueryKeys.conversationMessages(id)        // ["conversation-messages", id]
 ```
 
 ### Polling
@@ -296,8 +307,8 @@ A API já está hospedada e funcional. Criar um backend local seria escopo fora 
 **React Query como única camada de estado servidor**
 Não foi usado Redux, Zustand nem Context para dados do servidor — React Query já resolve cache, polling, otimismo e invalidação. Estado de UI local (conversa selecionada, texto do composer) ficou em `useState` simples no componente mais próximo.
 
-**`lib/api.ts` mantida sem deletar**
-O arquivo do starter ainda está presente, mas supersedido. A deleção ficou fora do escopo para não gerar diff desnecessário no desafio — o typecheck e o build não são afetados.
+**Endpoints e query keys centralizados por domínio**
+Rotas da API (`inbox.endpoints.ts`) e query keys (`inbox-query-keys.ts`) ficam em arquivos únicos do módulo inbox. Evita strings de rota e arrays de chave duplicados entre service, hooks e mutations, sem introduzir um router global ou abstração maior que o escopo exige.
 
 ---
 

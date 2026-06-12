@@ -1,17 +1,18 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { sendMessage } from "@/modules/inbox/services/inbox.service";
+import { inboxQueryKeys } from "./inbox-query-keys";
 import type { Message } from "@/modules/inbox/types/inbox.types";
 
 export function useSendMessageMutation(conversationId: string) {
   const queryClient = useQueryClient();
-  const messagesKey = ["conversation-messages", conversationId];
+  const messagesKey = inboxQueryKeys.conversationMessages(conversationId);
 
   return useMutation({
     mutationFn: (text: string) => sendMessage(conversationId, { text }),
 
     onMutate: async (text: string) => {
       await queryClient.cancelQueries({ queryKey: messagesKey });
-      await queryClient.cancelQueries({ queryKey: ["conversations"] });
+      await queryClient.cancelQueries({ queryKey: inboxQueryKeys.conversations });
 
       const snapshot = queryClient.getQueryData<Message[]>(messagesKey);
 
@@ -39,7 +40,7 @@ export function useSendMessageMutation(conversationId: string) {
 
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: messagesKey });
-      queryClient.invalidateQueries({ queryKey: ["conversations"] });
+      queryClient.invalidateQueries({ queryKey: inboxQueryKeys.conversations });
     },
   });
 }
