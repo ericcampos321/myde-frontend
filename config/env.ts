@@ -1,10 +1,16 @@
 function resolveApiBaseUrl(): string {
-  const value = (process.env.NEXT_PUBLIC_API_URL ?? "").trim();
+  const value = (
+    process.env.NEXT_PUBLIC_API_BASE_URL ??
+    process.env.NEXT_PUBLIC_API_URL ??
+    ""
+  ).trim();
+
   if (!value) {
     throw new Error(
-      "[env] NEXT_PUBLIC_API_URL is required — copy .env.example to .env.local"
+      "[env] NEXT_PUBLIC_API_BASE_URL is required — copy .env.example to .env.local"
     );
   }
+
   return value;
 }
 

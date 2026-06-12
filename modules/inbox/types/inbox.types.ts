@@ -20,15 +20,15 @@ export interface Agent {
   id: string;
   name: string;
   role: string;
+  capabilities: {
+    sendMessage: boolean;
+    aiSuggestion: boolean;
+  };
 }
 
 export interface AiSuggestion {
   suggestion: string;
-  source: "openai" | "mock" | "mock-fallback";
-}
-
-export interface SendMessagePayload {
-  text: string;
+  source: "openai" | "stub";
 }
 
 export interface AiSuggestPayload {

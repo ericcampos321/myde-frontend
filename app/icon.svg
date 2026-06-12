@@ -1,0 +1,32 @@
+<svg width="64" height="64" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bg" x1="8" y1="6" x2="56" y2="58" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#8A4765"/>
+      <stop offset="0.55" stop-color="#6C3552"/>
+      <stop offset="1" stop-color="#3C1F35"/>
+    </linearGradient>
+    <linearGradient id="shine" x1="17" y1="10" x2="48" y2="27" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#5DF0D0"/>
+      <stop offset="1" stop-color="#28B9FF"/>
+    </linearGradient>
+  </defs>
+
+  <rect x="4" y="4" width="56" height="56" rx="16" fill="url(#bg)"/>
+  <path d="M12 16C12 11.5817 15.5817 8 20 8H44C48.4183 8 52 11.5817 52 16V18H47.5V16C47.5 14.067 45.933 12.5 44 12.5H20C18.067 12.5 16.5 14.067 16.5 16V16.5C16.5 16.7761 16.2761 17 16 17H12V16Z" fill="url(#shine)" opacity="0.95"/>
+
+  <path
+    d="M20 18H37C43.0751 18 48 22.9249 48 29C48 35.0751 43.0751 40 37 40H31.7813L24.7461 45.7579C23.7745 46.5528 22.3125 45.8615 22.3125 44.6063V39.5316C17.5261 38.4506 14 34.1702 14 29C14 22.9249 18.9249 18 25 18"
+    stroke="white"
+    stroke-width="4.5"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+  />
+
+  <path d="M23 27.5H36" stroke="#28B9FF" stroke-width="4" stroke-linecap="round"/>
+  <path d="M23 33H31.5" stroke="#28B9FF" stroke-width="4" stroke-linecap="round" opacity="0.95"/>
+
+  <path
+    d="M45.5 14.5L47.1805 18.3195L51 20L47.1805 21.6805L45.5 25.5L43.8195 21.6805L40 20L43.8195 18.3195L45.5 14.5Z"
+    fill="#5DF0D0"
+  />
+</svg>

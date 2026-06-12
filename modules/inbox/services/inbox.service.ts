@@ -5,7 +5,6 @@ import type {
   AiSuggestion,
   Conversation,
   Message,
-  SendMessagePayload,
 } from "@/modules/inbox/types/inbox.types";
 
 export async function getMe(): Promise<Agent> {
@@ -23,17 +22,6 @@ export async function getConversations(): Promise<Conversation[]> {
 export async function getMessages(conversationId: string): Promise<Message[]> {
   const { data } = await apiClient.get<Message[]>(
     inboxEndpoints.conversationMessages(conversationId)
-  );
-  return data;
-}
-
-export async function sendMessage(
-  conversationId: string,
-  payload: SendMessagePayload
-): Promise<Message> {
-  const { data } = await apiClient.post<Message>(
-    inboxEndpoints.conversationMessages(conversationId),
-    payload
   );
   return data;
 }

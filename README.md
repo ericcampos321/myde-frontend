@@ -1,7 +1,6 @@
 # Myde Inbox — Frontend Challenge
 
-Inbox de atendimento WhatsApp com sugestão de resposta por IA.
-Entrega do desafio técnico frontend sênior.
+Inbox de atendimento WhatsApp consumindo o backend real Myde/Maude.
 
 ---
 
@@ -11,9 +10,8 @@ Entrega do desafio técnico frontend sênior.
 - Busca e filtro local em tempo real
 - Tela de chat com histórico de mensagens
 - Bolhas diferenciadas por direção (`in` = cliente / `out` = atendente) com status de envio
-- Envio de mensagem com **atualização otimista** — aparece antes da confirmação da API
-- Rollback automático em caso de erro no envio
-- Botão "Sugerir IA" — chama `POST /ai/suggest`, preenche o composer, permite edição antes de enviar
+- Botão "Sugerir IA" — chama `POST /ai/suggest` no backend real e preenche o composer
+- Composer em modo assistido quando o backend ainda não expõe envio outbound real
 - Erro de sugestão IA isolado — não bloqueia o chat
 - **Polling moderado**: conversas a cada 12s, mensagens a cada 5s (só com conversa ativa)
 - Indicador discreto de sincronização em background (barra azul na sidebar)
@@ -36,7 +34,7 @@ Entrega do desafio técnico frontend sênior.
 | Axios | ^1.7.9 | Cliente HTTP centralizado |
 | clsx + tailwind-merge | ^2 / ^3 | Composição de classes Tailwind |
 
-> Backend fornecido e hospedado. Não é necessário implementar nem rodar localmente.
+> Fluxo principal: frontend em `localhost:3000` consumindo `myde-backend` em `localhost:8000`.
 
 ---
 
@@ -71,11 +69,11 @@ A entrega está limpa nos três comandos.
 
 | Variável | Descrição |
 |---|---|
-| `NEXT_PUBLIC_API_URL` | URL base da API (backend já hospedado) |
+| `NEXT_PUBLIC_API_BASE_URL` | URL base do backend Myde/Maude |
 
-O arquivo `.env.example` contém a URL hospedada padrão. Copie para `.env.local` — este arquivo **não deve ser commitado** (já está no `.gitignore`).
+O arquivo `.env.example` aponta por padrao para `http://localhost:8000`. Copie para `.env.local` — este arquivo **não deve ser commitado** (já está no `.gitignore`).
 
-`NEXT_PUBLIC_API_URL` é obrigatória. Se ausente, a aplicação falha explicitamente ao iniciar — sem fallback silencioso. O valor ativo deve sempre apontar para a API hospedada.
+`NEXT_PUBLIC_API_BASE_URL` é obrigatória. Se ausente, a aplicação falha explicitamente ao iniciar — sem fallback silencioso.
 
 ---
 
@@ -136,7 +134,6 @@ modules/
       use-me-query.ts
       use-conversations-query.ts
       use-conversation-messages-query.ts
-      use-send-message-mutation.ts
       use-ai-suggestion-mutation.ts
     services/             — Transporte e rotas da API
       inbox.endpoints.ts    — Endpoints centralizados do domínio
@@ -218,7 +215,7 @@ inboxQueryKeys.conversationMessages(id)        // ["conversation-messages", id]
 | `conversations` | 12 segundos | Sempre que o componente está montado |
 | `conversation-messages` | 5 segundos | Só quando `conversationId` não é `null` (`enabled: !!conversationId`) |
 
-Polling agressivo foi deliberadamente evitado. 12s e 5s são suficientes para inbox de suporte e não sobrecarregam a API hospedada.
+Polling agressivo foi deliberadamente evitado. 12s e 5s são suficientes para inbox de suporte e não sobrecarregam a API real.
 
 ### Configuração global do QueryClient
 
@@ -232,15 +229,15 @@ Polling agressivo foi deliberadamente evitado. 12s e 5s são suficientes para in
 
 ---
 
-## Atualização otimista no envio de mensagem
+## Composer assistido
 
-Fluxo em `use-send-message-mutation.ts`:
+O backend real ainda nao expõe envio outbound pela Meta neste modulo. Por isso o composer opera em modo assistido:
 
-1. **`onMutate`** — cancela queries em andamento (`messages` e `conversations`) para evitar race condition, salva snapshot do cache atual, insere mensagem local com `id: "optimistic-*"` e opacidade reduzida
-2. **`onError`** — restaura o snapshot salvo (rollback completo)
-3. **`onSettled`** — invalida `["conversation-messages", id]` e `["conversations"]` para buscar o estado real da API
+1. Busca sugestao via `POST /ai/suggest`
+2. Permite editar o texto localmente
+3. Oferece copia rapida para atendimento humano
 
-A mensagem aparece imediatamente para o usuário. Se a API rejeitar, desaparece e o campo preserva o texto para reenvio.
+O botao de envio permanece desabilitado ate o backend expor um endpoint real de outbound.
 
 ---
 
@@ -248,7 +245,7 @@ A mensagem aparece imediatamente para o usuário. Se a API rejeitar, desaparece 
 
 - Mutation separada (`use-ai-suggestion-mutation.ts`) — não toca o cache de mensagens
 - Ao receber a sugestão, preenche o `textarea` via callback (`onSuggestion`)
-- O atendente pode editar o texto antes de enviar — a sugestão é apenas ponto de partida
+- O atendente pode editar o texto antes de copiar — a sugestão é apenas ponto de partida
 - Erro da IA é exibido em tooltip isolado sobre o botão — o compositor e o chat continuam funcionando normalmente
 - O botão exibe spinner próprio durante a requisição sem bloquear a textarea
 
@@ -279,8 +276,7 @@ A mensagem aparece imediatamente para o usuário. Se a API rejeitar, desaparece 
 | Refetch em background | Barra de sincronização discreta (não bloqueia) |
 | Erro de API | ErrorState com mensagem e botão de retry |
 | Vazio | EmptyState com mensagem contextual |
-| Enviando mensagem | Textarea e botão desabilitados, spinner no botão |
-| Erro de envio | Mensagem de erro inline, texto preservado no composer |
+| Envio outbound indisponível | Composer explica o estado atual do backend e mantém cópia manual |
 | Sugerindo IA | Spinner no botão IA, compositor editável |
 | Erro de sugestão IA | Tooltip isolado, chat inalterado |
 | Sem conversa selecionada | Tela de placeholder com instrução |
@@ -303,10 +299,10 @@ O design system foi construído do zero com ~10 componentes. Mantém controle to
 A API fornecida é REST, sem endpoint de streaming. Polling a 5–12s é adequado para inbox de suporte e reduz complexidade de infraestrutura. Para produção com volume alto, SSE ou WebSocket seriam a evolução natural.
 
 **Sem autenticação real**
-O endpoint `/me` está disponível e é consumido para exibir o nome do atendente. Não há fluxo de login/token porque o backend fornecido não requer autenticação nos demais endpoints.
+O endpoint `/me` é consumido para exibir o tenant atual e suas capacidades. Não há fluxo de login/token neste módulo.
 
-**Sem backend local novo**
-A API já está hospedada e funcional. Criar um backend local seria escopo fora do desafio e geraria complexidade operacional sem valor demonstrável.
+**Backend local real**
+O fluxo esperado agora usa `myde-backend` local, com Postgres, Redis e webhook Meta reais.
 
 **React Query como única camada de estado servidor**
 Não foi usado Redux, Zustand nem Context para dados do servidor — React Query já resolve cache, polling, otimismo e invalidação. Estado de UI local (conversa selecionada, texto do composer) ficou em `useState` simples no componente mais próximo.
@@ -319,7 +315,7 @@ Rotas da API (`inbox.endpoints.ts`) e query keys (`inbox-query-keys.ts`) ficam e
 ## O que faria com mais tempo
 
 **Qualidade e confiabilidade:**
-- Testes unitários dos hooks (`use-send-message-mutation`, `use-conversations-query`) com Vitest + Testing Library
+- Testes unitários dos hooks (`use-conversations-query`, `use-ai-suggestion-mutation`) com Vitest + Testing Library
 - Testes e2e do fluxo principal (selecionar conversa → enviar → rollback) com Playwright
 - Auditoria de acessibilidade com axe-core ou Lighthouse
 
@@ -339,20 +335,17 @@ Rotas da API (`inbox.endpoints.ts`) e query keys (`inbox-query-keys.ts`) ficam e
 
 ## Contratos de API
 
-Base URL: variável `NEXT_PUBLIC_API_URL`
+Base URL: variável `NEXT_PUBLIC_API_BASE_URL`
 
 ```
 GET  /me
-     → Agent { id, name, role }
+     → Agent { id, name, role, capabilities }
 
 GET  /conversations
      → Conversation[] (desc por lastMessageAt)
 
 GET  /conversations/:id/messages
      → Message[] (asc por createdAt)
-
-POST /conversations/:id/messages    { text: string }
-     → Message  (HTTP 201)
 
 POST /ai/suggest                    { conversationId: string }
      → AiSuggestion { suggestion, source }

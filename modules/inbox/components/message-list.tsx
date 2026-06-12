@@ -43,7 +43,7 @@ export function MessageList({ messages, isLoading, isError, onRetry }: MessageLi
       <div className="flex-1 flex items-center justify-center">
         <EmptyState
           title="Nenhuma mensagem ainda"
-          description="Envie a primeira mensagem para iniciar o atendimento."
+          description="Aguardando mensagens recebidas no WhatsApp real."
         />
       </div>
     );
