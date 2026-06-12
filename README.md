@@ -1,141 +1,123 @@
-# Myde Frontend — Inbox de Atendimento WhatsApp com IA
+# Myde Inbox — Frontend Challenge
 
-Desafio técnico frontend sênior. Interface de inbox de suporte via WhatsApp com sugestão de resposta por IA.
+Inbox de atendimento WhatsApp com sugestão de resposta por IA.
+Entrega do desafio técnico frontend sênior.
 
-## Como rodar
+---
 
-```bash
-cp .env.example .env.local
-npm install
-npm run dev
-```
+## Funcionalidades entregues
 
-Acesse: http://localhost:3000
+- Lista de conversas com contato, última mensagem, horário e indicador de não-lidas
+- Busca e filtro local em tempo real
+- Tela de chat com histórico de mensagens
+- Bolhas diferenciadas por direção (`in` = cliente / `out` = atendente) com status de envio
+- Envio de mensagem com **atualização otimista** — aparece antes da confirmação da API
+- Rollback automático em caso de erro no envio
+- Botão "Sugerir IA" — chama `POST /ai/suggest`, preenche o composer, permite edição antes de enviar
+- Erro de sugestão IA isolado — não bloqueia o chat
+- **Polling moderado**: conversas a cada 12s, mensagens a cada 5s (só com conversa ativa)
+- Indicador discreto de sincronização em background (barra azul na sidebar)
+- Estados visuais: loading skeleton, erro com retry, empty state em todas as superfícies
+- Layout responsivo: sidebar + chat no desktop, navegação alternada no mobile
+- Visual dark premium alinhado à identidade Myde (`#02060D` background, `#1E80FF` accent)
+- Acessibilidade básica: `aria-label` em ações, `role="log"` no chat, `role="alert"` em erros, foco visível
 
-## Variáveis de ambiente
-
-| Variável | Descrição |
-|---|---|
-| `NEXT_PUBLIC_API_URL` | URL base do backend (hospedado por padrão) |
-
-O backend já está hospedado e funcional. Não é necessário rodá-lo localmente, mas há um servidor de desenvolvimento local em `desafio-frontend-nextjs/server/` se necessário.
-
-## Scripts disponíveis
-
-| Script | Descrição |
-|---|---|
-| `npm run dev` | Servidor de desenvolvimento |
-| `npm run build` | Build de produção |
-| `npm run start` | Servir build de produção |
-| `npm run lint` | Análise ESLint |
-| `npm run typecheck` | Verificação TypeScript sem emitir |
+---
 
 ## Stack
 
 | Tecnologia | Versão | Papel |
 |---|---|---|
-| Next.js | 15.5 | Framework (App Router) |
-| React | 19 | UI |
-| TypeScript | 5.7 | Tipagem estática |
-| Tailwind CSS | 4.0 | Estilos (utility-first) |
-| React Query | 5.62 | Cache, polling e mutações |
-| Axios | 1.7 | Cliente HTTP centralizado |
+| Next.js | ^15.5.19 | Framework — App Router |
+| React | 19.0.0 | UI |
+| TypeScript | ^5.7.0 | Tipagem estática |
+| Tailwind CSS | ^4.0.0 | Estilos utility-first |
+| TanStack React Query | ^5.62.0 | Data fetching, cache e mutações |
+| Axios | ^1.7.9 | Cliente HTTP centralizado |
+| clsx + tailwind-merge | ^2 / ^3 | Composição de classes Tailwind |
 
-## Contratos de API
+> Backend fornecido e hospedado. Não é necessário implementar nem rodar localmente.
 
-Base URL: `NEXT_PUBLIC_API_URL` (padrão: `https://8tymn68hp9.execute-api.us-east-1.amazonaws.com`)
+---
 
-### Endpoints
+## Como rodar
 
-```
-GET  /me
-     → Agent { id, name, role }
+```bash
+# 1. Copiar variáveis de ambiente
+cp .env.example .env.local
 
-GET  /conversations
-     → Conversation[] (ordenadas por lastMessageAt DESC)
+# 2. Instalar dependências
+npm install
 
-GET  /conversations/:id/messages
-     → Message[] (ordenadas por createdAt ASC)
-
-POST /conversations/:id/messages
-     Body: { text: string }
-     → Message (HTTP 201)
-
-POST /ai/suggest
-     Body: { conversationId: string }
-     → AiSuggestion { suggestion, source }
+# 3. Iniciar em desenvolvimento
+npm run dev
 ```
 
-### Tipos principais
+Acesse: **http://localhost:3000**
 
-```typescript
-Conversation {
-  id: string
-  contactName: string
-  contactPhone: string
-  avatarColor: string       // cor do avatar gerada no seed
-  unread: number
-  lastMessage: string
-  lastMessageAt: string     // ISO 8601
-}
+### Validação
 
-Message {
-  id: string
-  direction: "in" | "out"  // "in" = cliente, "out" = atendente
-  body: string
-  status: "sent" | "delivered" | "read"
-  createdAt: string         // ISO 8601
-}
-
-Agent {
-  id: string
-  name: string
-  role: string
-}
-
-AiSuggestion {
-  suggestion: string
-  source: "openai" | "mock" | "mock-fallback"
-}
+```bash
+npm run typecheck   # TypeScript sem emitir arquivos
+npm run lint        # ESLint
+npm run build       # Build de produção
 ```
 
-### Padrão de erro da API
+A entrega está limpa nos três comandos.
 
-```json
-{ "error": "mensagem descritiva" }
-```
+---
 
-Status HTTP usados: `200`, `201`, `400`, `401`, `404`.
+## Variáveis de ambiente
 
-## Arquitetura do frontend
+| Variável | Descrição |
+|---|---|
+| `NEXT_PUBLIC_API_URL` | URL base da API (backend já hospedado) |
+
+O arquivo `.env.example` contém a URL hospedada padrão. Copie para `.env.local` — este arquivo **não deve ser commitado** (já está no `.gitignore`).
+
+---
+
+## Scripts disponíveis
+
+| Script | Comando | Descrição |
+|---|---|---|
+| dev | `npm run dev` | Servidor de desenvolvimento |
+| build | `npm run build` | Build de produção |
+| start | `npm run start` | Servir o build de produção |
+| lint | `npm run lint` | ESLint |
+| typecheck | `npm run typecheck` | Verificação TypeScript (`tsc --noEmit`) |
+
+---
+
+## Arquitetura
 
 ### Estrutura de pastas
 
 ```
 app/
-  layout.tsx          — root layout (Server Component, fino)
-  page.tsx            — entry point, monta InboxPage
-  providers.tsx       — QueryClientProvider (Client Component)
-  globals.css         — variáveis CSS + reset Tailwind
+  layout.tsx              — Root layout (Server Component, fino)
+  page.tsx                — Entry point: apenas monta <InboxPage />
+  providers.tsx           — QueryClientProvider (Client Component)
+  globals.css             — Variáveis CSS Myde + reset Tailwind v4
 
 components/
-  ui/                 — componentes de design system (puros, sem domínio)
-    button.tsx
-    input.tsx
-    textarea.tsx
-    badge.tsx
-    card.tsx
+  ui/                     — Design system: componentes visuais puros, sem domínio
     avatar.tsx
-    skeleton.tsx
-    spinner.tsx
+    badge.tsx
+    button.tsx
+    card.tsx
     empty-state.tsx
     error-state.tsx
+    input.tsx
+    skeleton.tsx
+    spinner.tsx
+    textarea.tsx
   shared/
-    app-shell.tsx     — wrapper de layout global
+    app-shell.tsx         — Layout responsivo desktop/mobile
 
 modules/
   inbox/
-    components/       — componentes de domínio do inbox
+    components/           — Componentes de domínio do inbox
       inbox-page.tsx
       inbox-layout.tsx
       conversation-list.tsx
@@ -147,88 +129,240 @@ modules/
       message-composer.tsx
       ai-suggestion-button.tsx
       no-conversation-selected.tsx
-    hooks/            — React Query por recurso
+    hooks/                — React Query por recurso
       use-me-query.ts
       use-conversations-query.ts
       use-conversation-messages-query.ts
       use-send-message-mutation.ts
       use-ai-suggestion-mutation.ts
-    services/         — funções de chamada HTTP
+    services/             — Funções de chamada HTTP
       inbox.service.ts
-    types/            — tipos do domínio
+    types/                — Contratos de domínio
       inbox.types.ts
+    utils/
+      format-message-time.ts
 
 services/
   http/
-    api-client.ts     — instância Axios configurada
-    api-error.ts      — normalização de erros
+    api-client.ts         — Instância Axios configurada (baseURL, timeout)
+    api-error.ts          — Normalização de erros da API
 
 utils/
-  cn.ts               — merge de classes Tailwind (clsx)
-  format-message-time.ts
-  get-contact-initials.ts
+  cn.ts                   — Merge de classes Tailwind (clsx + tailwind-merge)
 ```
 
-### Princípios de separação
+> **Nota:** `lib/api.ts` e `app/connection-check.tsx` são artefatos do starter original que ainda estão presentes mas foram **supersedidos** pela arquitetura em `services/http/` e `modules/inbox/`. Não afetam o build nem o produto final.
 
-- `app/page.tsx` não contém lógica — apenas monta `<InboxPage />`
-- Chamadas HTTP ficam exclusivamente em `modules/inbox/services/` e `services/http/`
-- Hooks React Query ficam em `modules/inbox/hooks/`
-- Componentes visuais puros em `components/ui/` — sem queries, sem domínio
-- Componentes de domínio em `modules/inbox/components/` — podem usar hooks
-- Server Components: `app/layout.tsx`, `app/page.tsx`
-- Client Components: tudo em `modules/`, `components/ui/`, `providers.tsx`
+---
 
-## Estratégia React Query
+## Separação de responsabilidades
+
+| Camada | Onde | Regra |
+|---|---|---|
+| Transporte HTTP | `services/http/api-client.ts` | Única instância Axios. Nenhum outro arquivo importa axios diretamente |
+| Chamadas de API | `modules/inbox/services/inbox.service.ts` | Funções puras: recebem parâmetros, retornam tipos do domínio |
+| Cache e estado servidor | `modules/inbox/hooks/use-*` | React Query — queries e mutations por recurso |
+| Componentes de domínio | `modules/inbox/components/` | Orquestram hooks e componentes de UI |
+| Componentes visuais | `components/ui/` | Recebem props, não conhecem domínio nem API |
+| Contratos de tipo | `modules/inbox/types/inbox.types.ts` | Única fonte de verdade para os tipos do domínio |
+| Entry point | `app/page.tsx` | Um import, zero lógica |
+
+Padrão inspirado na arquitetura Rufus, adaptado ao escopo do desafio: sem over-engineering, sem abstrações prematuras.
+
+---
+
+## Server Components vs Client Components
+
+**Server Components** (padrão no App Router):
+- `app/layout.tsx` — root layout, sem interação
+- `app/page.tsx` — entrada, apenas delega para `InboxPage`
+
+**Client Components** (`"use client"`):
+- Tudo em `modules/inbox/` e `components/`
+
+**Por quê o Inbox é majoritariamente client-side?**
+
+React Query e suas subscriptions de polling exigem um contexto de browser. A seleção de conversa, o estado de envio e o composer são interações contínuas que dependem de estado local. Não há ganho real em tentar isolar partes como Server Components nesse contexto — o custo de coordenação superaria o benefício.
+
+---
+
+## Estratégia de dados (React Query)
 
 ### Query keys
 
 ```typescript
-["me"]
-["conversations"]
-["conversation-messages", conversationId]
+["me"]                                      // Dados do atendente
+["conversations"]                           // Lista de conversas
+["conversation-messages", conversationId]   // Mensagens da conversa ativa
 ```
 
 ### Polling
 
-| Query | Intervalo | Condição |
+| Query | Intervalo | Condição de ativação |
 |---|---|---|
-| conversations | 12 segundos | sempre ativo |
-| messages | 5 segundos | só com conversa selecionada |
+| `conversations` | 12 segundos | Sempre que o componente está montado |
+| `conversation-messages` | 5 segundos | Só quando `conversationId` não é `null` (`enabled: !!conversationId`) |
 
-### Envio otimista de mensagem
+Polling agressivo foi deliberadamente evitado. 12s e 5s são suficientes para inbox de suporte e não sobrecarregam a API hospedada.
 
-1. `onMutate`: cancela query de mensagens, insere mensagem local com `id: "optimistic-*"`
-2. `onError`: rollback restaurando snapshot anterior
-3. `onSettled`: invalida `["conversation-messages", id]` e `["conversations"]`
+### Configuração global do QueryClient
 
-### Sugestão IA
+```typescript
+{
+  staleTime: 5_000,         // Dados considerados frescos por 5s — evita refetch desnecessário
+  refetchOnWindowFocus: false,  // Sem refetch ao focar a janela
+  retry: 1,                 // Uma retentativa em falha — padrão 3 seria agressivo com polling
+}
+```
 
-- Mutation separada, não altera cache de mensagens
-- Preenche apenas o estado local do composer (textarea)
-- Erro da IA não quebra o chat — capturado isoladamente
+---
 
-## Identidade visual
+## Atualização otimista no envio de mensagem
 
-Paleta dark premium da Myde:
+Fluxo em `use-send-message-mutation.ts`:
 
-| Token | Valor |
+1. **`onMutate`** — cancela queries em andamento (`messages` e `conversations`) para evitar race condition, salva snapshot do cache atual, insere mensagem local com `id: "optimistic-*"` e opacidade reduzida
+2. **`onError`** — restaura o snapshot salvo (rollback completo)
+3. **`onSettled`** — invalida `["conversation-messages", id]` e `["conversations"]` para buscar o estado real da API
+
+A mensagem aparece imediatamente para o usuário. Se a API rejeitar, desaparece e o campo preserva o texto para reenvio.
+
+---
+
+## Sugestão de resposta com IA
+
+- Mutation separada (`use-ai-suggestion-mutation.ts`) — não toca o cache de mensagens
+- Ao receber a sugestão, preenche o `textarea` via callback (`onSuggestion`)
+- O atendente pode editar o texto antes de enviar — a sugestão é apenas ponto de partida
+- Erro da IA é exibido em tooltip isolado sobre o botão — o compositor e o chat continuam funcionando normalmente
+- O botão exibe spinner próprio durante a requisição sem bloquear a textarea
+
+---
+
+## Polling e feedback operacional
+
+**Problemas endereçados:**
+
+- `isFetching && !isLoading` detecta refetch em background. A lista de conversas exibe uma barra azul de 2px no topo durante sincronização — feedback sem interromper a interação
+- `key={conversationId}` no `MessageList` força remontagem ao trocar de conversa, resetando o ref de scroll e evitando que mensagens de uma conversa sejam scrolladas sobre outra
+- Scroll usa `"instant"` na primeira renderização (posiciona sem animação) e `"smooth"` apenas em mensagens novas — evita o efeito de "pular" ao carregar uma conversa com histórico
+- `cancelQueries` em `onMutate` cancela tanto mensagens quanto conversas, evitando que um refetch em andamento sobreponha o estado otimista
+
+---
+
+## UX e acessibilidade
+
+**Layout:**
+- Desktop: sidebar fixa (280-320px) + painel de chat adaptável
+- Mobile: lista visível sem conversa selecionada, chat ocupa tela inteira quando há conversa ativa — navegação por botão de voltar
+
+**Estados cobertos em todas as superfícies:**
+
+| Estado | Tratamento |
 |---|---|
-| Background | `#02060D` |
-| Surface / card | `#0B111C` |
-| Border | `#1F2A3D` |
-| Accent / primary | `#1E80FF` |
-| Text | `#F8FAFC` |
-| Text muted | `#7C8CA3` |
+| Loading inicial | Skeleton animado proporcional ao conteúdo |
+| Refetch em background | Barra de sincronização discreta (não bloqueia) |
+| Erro de API | ErrorState com mensagem e botão de retry |
+| Vazio | EmptyState com mensagem contextual |
+| Enviando mensagem | Textarea e botão desabilitados, spinner no botão |
+| Erro de envio | Mensagem de erro inline, texto preservado no composer |
+| Sugerindo IA | Spinner no botão IA, compositor editável |
+| Erro de sugestão IA | Tooltip isolado, chat inalterado |
+| Sem conversa selecionada | Tela de placeholder com instrução |
+
+**Acessibilidade implementada:**
+- `aria-label` em todos os botões sem texto visível
+- `aria-pressed` nos itens de conversa selecionados
+- `role="log" aria-live="polite"` no histórico de mensagens
+- `role="alert"` em mensagens de erro
+- Foco visível via `focus-visible:ring-*` nos elementos interativos
+
+---
+
+## Decisões e trade-offs
+
+**Tailwind puro em vez de UI library (MUI, shadcn, Radix)**
+O design system foi construído do zero com ~10 componentes. Mantém controle total sobre a paleta Myde, elimina dependências pesadas e é suficiente para o escopo do desafio. shadcn/Radix seria justificável em produto com mais superfícies.
+
+**Polling em vez de WebSocket/SSE**
+A API fornecida é REST, sem endpoint de streaming. Polling a 5–12s é adequado para inbox de suporte e reduz complexidade de infraestrutura. Para produção com volume alto, SSE ou WebSocket seriam a evolução natural.
+
+**Sem autenticação real**
+O endpoint `/me` está disponível e é consumido para exibir o nome do atendente. Não há fluxo de login/token porque o backend fornecido não requer autenticação nos demais endpoints.
+
+**Sem backend local novo**
+A API já está hospedada e funcional. Criar um backend local seria escopo fora do desafio e geraria complexidade operacional sem valor demonstrável.
+
+**React Query como única camada de estado servidor**
+Não foi usado Redux, Zustand nem Context para dados do servidor — React Query já resolve cache, polling, otimismo e invalidação. Estado de UI local (conversa selecionada, texto do composer) ficou em `useState` simples no componente mais próximo.
+
+**`lib/api.ts` mantida sem deletar**
+O arquivo do starter ainda está presente, mas supersedido. A deleção ficou fora do escopo para não gerar diff desnecessário no desafio — o typecheck e o build não são afetados.
+
+---
 
 ## O que faria com mais tempo
 
-- Autenticação real com JWT e refresh token
-- Notificações push para novas mensagens
-- Suporte a mensagens com mídia (imagem, áudio)
-- Testes unitários dos hooks e componentes críticos (Vitest + Testing Library)
-- Storybook para o design system
-- Virtualização da lista de mensagens longas (TanStack Virtual)
-- Paginação/cursor nas queries de mensagens e conversas
-- WebSocket em vez de polling para latência menor
-- i18n
+**Qualidade e confiabilidade:**
+- Testes unitários dos hooks (`use-send-message-mutation`, `use-conversations-query`) com Vitest + Testing Library
+- Testes e2e do fluxo principal (selecionar conversa → enviar → rollback) com Playwright
+- Auditoria de acessibilidade com axe-core ou Lighthouse
+
+**Produto:**
+- Persistência da conversa selecionada na URL (`/inbox/[conversationId]`) — deep link e reload seguro
+- Scroll inteligente: parar de forçar scroll ao fundo se o usuário estiver lendo o histórico
+- Virtualização da lista de mensagens com TanStack Virtual para conversas longas
+- Paginação/cursor nos endpoints de mensagens e conversas
+- WebSocket ou SSE em substituição ao polling para latência real-time
+- Suporte a mensagens com mídia (imagem, áudio) assim que a API evoluir
+
+**Observabilidade:**
+- Error boundary global com logging estruturado
+- Métricas de frontend (Core Web Vitals, tempo de resposta percebido)
+
+---
+
+## Contratos de API
+
+Base URL: variável `NEXT_PUBLIC_API_URL`
+
+```
+GET  /me
+     → Agent { id, name, role }
+
+GET  /conversations
+     → Conversation[] (desc por lastMessageAt)
+
+GET  /conversations/:id/messages
+     → Message[] (asc por createdAt)
+
+POST /conversations/:id/messages    { text: string }
+     → Message  (HTTP 201)
+
+POST /ai/suggest                    { conversationId: string }
+     → AiSuggestion { suggestion, source }
+```
+
+Padrão de erro: `{ "error": "mensagem descritiva" }` com status `400`, `401` ou `404`.
+
+---
+
+## Identidade visual
+
+| Token CSS | Valor |
+|---|---|
+| `--bg` | `#02060D` |
+| `--surface` | `#0B111C` |
+| `--surface-raised` | `#111827` |
+| `--border` | `#1F2A3D` |
+| `--accent` | `#1E80FF` |
+| `--text` | `#F8FAFC` |
+| `--text-muted` | `#7C8CA3` |
+
+Tokens definidos em `app/globals.css` via `@theme inline` do Tailwind v4, consumíveis como `bg-accent`, `text-text-muted`, etc.
+
+---
+
+## Histórico de commits
+
+A implementação seguiu o padrão **Conventional Commits** com commits pequenos e rastreáveis — cada commit entrega uma camada ou funcionalidade isolada, validada com `typecheck + lint + build` antes do próximo. O histórico é auditável via `git log --oneline`.
