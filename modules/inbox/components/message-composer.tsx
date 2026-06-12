@@ -58,7 +58,7 @@ export function MessageComposer({ conversationId }: MessageComposerProps) {
               if (sendError) setSendError(null);
             }}
             onKeyDown={handleKeyDown}
-            placeholder="Digite uma mensagem… (Enter envia, Shift+Enter quebra linha)"
+            placeholder="Digite uma mensagem…"
             rows={1}
             className="min-h-[40px] max-h-32"
             disabled={isPending}
@@ -66,26 +66,14 @@ export function MessageComposer({ conversationId }: MessageComposerProps) {
           />
         </div>
 
-        <AiSuggestionButton
-          conversationId={conversationId}
-          onSuggestion={handleSuggestion}
-          disabled={isPending}
-        />
+        <AiSuggestionButton conversationId={conversationId} onSuggestion={handleSuggestion} disabled={isPending} />
 
-        <Button
-          type="submit"
-          size="md"
-          loading={isPending}
-          disabled={!text.trim()}
-          aria-label="Enviar mensagem"
-        >
+        <Button type="submit" size="md" loading={isPending} disabled={!text.trim()} aria-label="Enviar mensagem">
           <SendIcon />
         </Button>
       </form>
 
-      <p className="text-[10px] text-text-muted">
-        Enter para enviar · Shift+Enter para nova linha
-      </p>
+      <p className="text-[10px] text-text-muted">Enter para enviar · Shift+Enter para nova linha</p>
     </div>
   );
 }
@@ -93,20 +81,8 @@ export function MessageComposer({ conversationId }: MessageComposerProps) {
 function SendIcon() {
   return (
     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden>
-      <path
-        d="M22 2L11 13"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-      <path
-        d="M22 2L15 22L11 13L2 9L22 2Z"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
+      <path d="M22 2L11 13" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M22 2L15 22L11 13L2 9L22 2Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
   );
 }

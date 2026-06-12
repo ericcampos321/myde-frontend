@@ -75,7 +75,7 @@ A entrega está limpa nos três comandos.
 
 O arquivo `.env.example` contém a URL hospedada padrão. Copie para `.env.local` — este arquivo **não deve ser commitado** (já está no `.gitignore`).
 
-A **fonte principal de dados é a API real** via `NEXT_PUBLIC_API_URL`. Não há dados mockados no frontend. O `api-client.ts` mantém um fallback para `http://localhost:4000` apenas como conveniência de desenvolvimento (servidor local opcional do starter) — na ausência da API, as queries entram em estado de erro tratado pela UI, sem dados artificiais.
+`NEXT_PUBLIC_API_URL` é obrigatória. Se ausente, a aplicação falha explicitamente ao iniciar — sem fallback silencioso. O valor ativo deve sempre apontar para a API hospedada.
 
 ---
 
@@ -146,9 +146,12 @@ modules/
     utils/
       format-message-time.ts
 
+config/
+  env.ts                  — Env pública centralizada (única leitura de process.env)
+
 services/
   http/
-    api-client.ts         — Instância Axios configurada (baseURL, timeout)
+    api-client.ts         — Instância Axios (consome config/env, sem process.env direto)
     api-error.ts          — Normalização de erros da API
 
 utils/
@@ -165,7 +168,8 @@ domínio, sem strings de rota ou arrays de chave espalhados pelos hooks.
 
 | Camada | Onde | Regra |
 |---|---|---|
-| Transporte HTTP | `services/http/api-client.ts` | Única instância Axios. Nenhum outro arquivo importa axios diretamente |
+| Variáveis de ambiente | `config/env.ts` | Única leitura de `process.env` — sem `process.env` espalhado no código |
+| Transporte HTTP | `services/http/api-client.ts` | Única instância Axios — consome `config/env`, não lê `process.env` diretamente |
 | Rotas da API | `modules/inbox/services/inbox.endpoints.ts` | Endpoints centralizados — services não montam URLs com strings soltas |
 | Chamadas de API | `modules/inbox/services/inbox.service.ts` | Funções puras: recebem parâmetros, retornam tipos do domínio |
 | Query keys | `modules/inbox/hooks/inbox-query-keys.ts` | Fonte única das keys — hooks e mutations não duplicam arrays |

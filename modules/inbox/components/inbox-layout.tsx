@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { AppShell } from "@/components/shared/app-shell";
 import { ConversationList } from "./conversation-list";
 import { ChatPanel } from "./chat-panel";
@@ -14,10 +15,7 @@ export function InboxLayout() {
 
   const header = (
     <div className="flex items-center justify-between w-full">
-      <div className="flex items-center gap-2">
-        <MydeLogo />
-        <span className="text-sm font-semibold text-text">Inbox</span>
-      </div>
+      <MydeLogo />
       {me && (
         <span className="text-xs text-text-muted hidden sm:block">
           {me.name} · {me.role}
@@ -52,13 +50,13 @@ export function InboxLayout() {
 
 function MydeLogo() {
   return (
-    <div className="flex items-center justify-center w-7 h-7 rounded-lg bg-accent">
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden>
-        <path
-          d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 14H9V8h2v8zm4 0h-2V8h2v8z"
-          fill="white"
-        />
-      </svg>
-    </div>
+    <Image
+      src="/brand/myde-inbox-logo.png"
+      alt="Myde Inbox"
+      width={2508}
+      height={627}
+      priority
+      className="w-[130px] sm:w-[160px] h-auto object-contain mix-blend-screen"
+    />
   );
 }
