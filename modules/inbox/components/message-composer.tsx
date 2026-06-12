@@ -1,9 +1,112 @@
 "use client";
 
+import { FormEvent, KeyboardEvent, useRef, useState } from "react";
+import { Textarea } from "@/components/ui/textarea";
+import { Button } from "@/components/ui/button";
+import { AiSuggestionButton } from "./ai-suggestion-button";
+import { useSendMessageMutation } from "@/modules/inbox/hooks/use-send-message-mutation";
+
 interface MessageComposerProps {
   conversationId: string;
 }
 
-export function MessageComposer(_props: MessageComposerProps) {
-  return null;
+export function MessageComposer({ conversationId }: MessageComposerProps) {
+  const [text, setText] = useState("");
+  const [sendError, setSendError] = useState<string | null>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const { mutate: send, isPending } = useSendMessageMutation(conversationId);
+
+  function handleSubmit(e?: FormEvent) {
+    e?.preventDefault();
+    const trimmed = text.trim();
+    if (!trimmed || isPending) return;
+
+    setSendError(null);
+    send(trimmed, {
+      onSuccess: () => setText(""),
+      onError: () => setSendError("Falha ao enviar. Tente novamente."),
+    });
+  }
+
+  function handleKeyDown(e: KeyboardEvent<HTMLTextAreaElement>) {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      handleSubmit();
+    }
+  }
+
+  function handleSuggestion(suggestion: string) {
+    setText(suggestion);
+    setTimeout(() => textareaRef.current?.focus(), 0);
+  }
+
+  return (
+    <div className="shrink-0 border-t border-border bg-surface px-4 py-3 space-y-2">
+      {sendError && (
+        <p className="text-xs text-danger" role="alert">
+          {sendError}
+        </p>
+      )}
+
+      <form onSubmit={handleSubmit} className="flex items-end gap-2">
+        <div className="flex-1">
+          <Textarea
+            ref={textareaRef}
+            value={text}
+            onChange={(e) => {
+              setText(e.target.value);
+              if (sendError) setSendError(null);
+            }}
+            onKeyDown={handleKeyDown}
+            placeholder="Digite uma mensagem… (Enter envia, Shift+Enter quebra linha)"
+            rows={1}
+            className="min-h-[40px] max-h-32"
+            disabled={isPending}
+            aria-label="Campo de mensagem"
+          />
+        </div>
+
+        <AiSuggestionButton
+          conversationId={conversationId}
+          onSuggestion={handleSuggestion}
+          disabled={isPending}
+        />
+
+        <Button
+          type="submit"
+          size="md"
+          loading={isPending}
+          disabled={!text.trim()}
+          aria-label="Enviar mensagem"
+        >
+          <SendIcon />
+        </Button>
+      </form>
+
+      <p className="text-[10px] text-text-muted">
+        Enter para enviar · Shift+Enter para nova linha
+      </p>
+    </div>
+  );
+}
+
+function SendIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden>
+      <path
+        d="M22 2L11 13"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M22 2L15 22L11 13L2 9L22 2Z"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
 }
