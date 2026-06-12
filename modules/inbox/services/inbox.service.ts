@@ -5,6 +5,7 @@ import type {
   AiSuggestion,
   Conversation,
   Message,
+  SentMessage,
 } from "@/modules/inbox/types/inbox.types";
 
 export async function getMe(): Promise<Agent> {
@@ -32,5 +33,22 @@ export async function suggestReply(
   const { data } = await apiClient.post<AiSuggestion>(inboxEndpoints.aiSuggest, {
     conversationId,
   });
+  return data;
+}
+
+export async function sendMessage(
+  conversationId: string,
+  text: string,
+  tenantId: string
+): Promise<SentMessage> {
+  const { data } = await apiClient.post<SentMessage>(
+    inboxEndpoints.conversationMessages(conversationId),
+    { text },
+    {
+      headers: {
+        "X-Tenant-ID": tenantId,
+      },
+    }
+  );
   return data;
 }

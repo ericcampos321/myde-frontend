@@ -16,6 +16,16 @@ export interface Message {
   createdAt: string;
 }
 
+export interface SentMessage {
+  id: string;
+  conversationId: string;
+  direction: "outbound";
+  body: string;
+  status: string;
+  externalMessageId: string | null;
+  createdAt: string;
+}
+
 export interface Agent {
   id: string;
   name: string;

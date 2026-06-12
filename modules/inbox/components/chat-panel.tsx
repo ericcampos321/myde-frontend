@@ -68,7 +68,12 @@ export function ChatPanel({ conversationId, onBack }: ChatPanelProps) {
         onRetry={() => refetch()}
       />
 
-      <MessageComposer conversationId={conversationId} />
+      <MessageComposer
+        conversationId={conversationId}
+        onMessageSent={async () => {
+          await refetch();
+        }}
+      />
     </div>
   );
 }

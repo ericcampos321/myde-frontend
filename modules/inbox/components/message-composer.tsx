@@ -5,16 +5,23 @@ import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { AiSuggestionButton } from "./ai-suggestion-button";
 import { useMeQuery } from "@/modules/inbox/hooks/use-me-query";
+import { sendMessage } from "@/modules/inbox/services/inbox.service";
+import { parseApiError } from "@/services/http/api-error";
 
 interface MessageComposerProps {
   conversationId: string;
+  onMessageSent?: () => Promise<void> | void;
 }
 
-export function MessageComposer({ conversationId }: MessageComposerProps) {
+type MessageState = "idle" | "success" | "error" | "sending";
+
+export function MessageComposer({
+  conversationId,
+  onMessageSent,
+}: MessageComposerProps) {
   const [text, setText] = useState("");
-  const [copyState, setCopyState] = useState<"idle" | "success" | "error">(
-    "idle"
-  );
+  const [messageState, setMessageState] = useState<MessageState>("idle");
+  const [errorMessage, setErrorMessage] = useState("");
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const { data: me } = useMeQuery();
 
@@ -26,7 +33,7 @@ export function MessageComposer({ conversationId }: MessageComposerProps) {
 
   function handleSuggestion(suggestion: string) {
     setText(suggestion);
-    setCopyState("idle");
+    setMessageState("idle");
     setTimeout(() => textareaRef.current?.focus(), 0);
   }
 
@@ -38,31 +45,48 @@ export function MessageComposer({ conversationId }: MessageComposerProps) {
 
     try {
       await navigator.clipboard.writeText(trimmed);
-      setCopyState("success");
+      setMessageState("success");
     } catch {
-      setCopyState("error");
+      setMessageState("error");
+      setErrorMessage("Não foi possível copiar automaticamente.");
+    }
+  }
+
+  async function handleSend() {
+    const trimmed = text.trim();
+    if (!trimmed || !me?.id) {
+      return;
+    }
+
+    setMessageState("sending");
+    setErrorMessage("");
+
+    try {
+      await sendMessage(conversationId, trimmed, me.id);
+      setText("");
+      setMessageState("success");
+      await onMessageSent?.();
+      setTimeout(() => setMessageState("idle"), 2000);
+    } catch (error) {
+      setMessageState("error");
+      setErrorMessage(parseApiError(error).message || "Erro ao enviar mensagem");
     }
   }
 
   const canSuggest = me?.capabilities.aiSuggestion ?? false;
   const canSend = me?.capabilities.sendMessage ?? false;
+  const isSending = messageState === "sending";
 
   return (
     <div className="shrink-0 border-t border-border bg-surface px-4 py-3">
-      {!canSend && (
+      {messageState === "success" && (
         <p className="mb-2 text-xs text-text-muted" role="status">
-          Envio outbound ainda não habilitado neste backend. Use a sugestão e
-          copie o texto para atendimento assistido.
+          Mensagem enviada com sucesso.
         </p>
       )}
-      {copyState === "success" && (
-        <p className="mb-2 text-xs text-text-muted" role="status">
-          Texto copiado para a area de transferencia.
-        </p>
-      )}
-      {copyState === "error" && (
+      {messageState === "error" && (
         <p className="mb-2 text-xs text-danger" role="alert">
-          Nao foi possivel copiar automaticamente. Copie o texto manualmente.
+          {errorMessage || "Erro ao enviar mensagem."}
         </p>
       )}
 
@@ -73,16 +97,17 @@ export function MessageComposer({ conversationId }: MessageComposerProps) {
             value={text}
             onChange={(e) => {
               setText(e.target.value);
-              if (copyState !== "idle") setCopyState("idle");
+              if (messageState !== "idle") setMessageState("idle");
             }}
             onKeyDown={handleKeyDown}
-            placeholder="Sugestao do backend real aparecera aqui..."
+            placeholder="Digite sua mensagem aqui..."
             rows={3}
             className="min-h-[72px] max-h-40"
-            aria-label="Campo de rascunho"
+            aria-label="Campo de mensagem"
+            disabled={isSending}
           />
           <p className="mt-1.5 text-[10px] text-text-muted">
-            Fluxo atual: leitura real da inbox e sugestao IA via backend.
+            Envio real de mensagens via Meta WhatsApp Cloud API.
           </p>
         </div>
 
@@ -91,6 +116,7 @@ export function MessageComposer({ conversationId }: MessageComposerProps) {
             <AiSuggestionButton
               conversationId={conversationId}
               onSuggestion={handleSuggestion}
+              disabled={isSending}
             />
           )}
           <Button
@@ -98,7 +124,7 @@ export function MessageComposer({ conversationId }: MessageComposerProps) {
             size="md"
             variant="ghost"
             onClick={() => void handleCopy()}
-            disabled={!text.trim()}
+            disabled={!text.trim() || isSending}
             aria-label="Copiar rascunho"
           >
             <CopyIcon />
@@ -107,11 +133,13 @@ export function MessageComposer({ conversationId }: MessageComposerProps) {
           <Button
             type="button"
             size="md"
-            disabled={!canSend || !text.trim()}
+            onClick={() => void handleSend()}
+            disabled={!canSend || !text.trim() || isSending}
             aria-label="Enviar mensagem"
-            title="Envio outbound ainda nao habilitado neste backend"
+            loading={isSending}
           >
             <SendIcon />
+            <span className="hidden sm:inline text-xs">Enviar</span>
           </Button>
         </div>
       </div>
