@@ -5,15 +5,20 @@ import { Input } from "@/components/ui/input";
 interface ConversationSearchProps {
   value: string;
   onChange: (v: string) => void;
+  placeholder?: string;
 }
 
-export function ConversationSearch({ value, onChange }: ConversationSearchProps) {
+export function ConversationSearch({
+  value,
+  onChange,
+  placeholder = "Pesquisar conversa",
+}: ConversationSearchProps) {
   return (
     <div className="relative">
       <SearchIcon />
       <Input
         type="search"
-        placeholder="Pesquisar conversa"
+        placeholder={placeholder}
         value={value}
         onChange={(e) => onChange(e.target.value)}
         className="h-[42px] rounded-full border-transparent bg-surface-raised/90 pl-10 pr-4 text-[13px] shadow-inner shadow-black/10 placeholder:text-text-muted/80 focus:border-accent/80 focus:bg-surface-raised focus:ring-accent/50"

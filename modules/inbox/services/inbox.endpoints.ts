@@ -5,6 +5,7 @@
 export const inboxEndpoints = {
   me: "/me",
   conversations: "/conversations",
+  contacts: "/contacts",
   conversationMessages: (conversationId: string) =>
     `/conversations/${conversationId}/messages`,
   aiSuggest: "/ai/suggest",

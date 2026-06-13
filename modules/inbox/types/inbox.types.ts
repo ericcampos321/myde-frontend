@@ -8,6 +8,15 @@ export interface Conversation {
   lastMessageAt: string;
 }
 
+export interface Contact {
+  id: string;
+  name: string;
+  phone: string;
+  profileName: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export type MessageStatus = "sent" | "delivered" | "read" | "failed";
 
 export interface Message {

@@ -5,6 +5,7 @@
 export const inboxQueryKeys = {
   me: ["me"] as const,
   conversations: ["conversations"] as const,
+  contacts: (searchTerm: string) => ["contacts", searchTerm] as const,
   conversationMessages: (conversationId: string | null) =>
     ["conversation-messages", conversationId] as const,
 };

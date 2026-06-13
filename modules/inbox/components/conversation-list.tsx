@@ -4,11 +4,12 @@ import { useState } from "react";
 import { useConversationsQuery } from "@/modules/inbox/hooks/use-conversations-query";
 import { ConversationSearch } from "./conversation-search";
 import { ConversationListItem } from "./conversation-list-item";
+import { ContactList } from "./contact-list";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ErrorState } from "@/components/ui/error-state";
 import type { Conversation } from "@/modules/inbox/types/inbox.types";
 
-type ConversationFilter = "all" | "unread";
+type RailSection = "conversations" | "contacts";
 
 interface ConversationListProps {
   selectedId: string | null;
@@ -16,17 +17,20 @@ interface ConversationListProps {
 }
 
 export function ConversationList({ selectedId, onSelect }: ConversationListProps) {
+  const [activeSection, setActiveSection] = useState<RailSection>("conversations");
   const [search, setSearch] = useState("");
-  const [activeFilter, setActiveFilter] = useState<ConversationFilter>("all");
+  const [contactSearch, setContactSearch] = useState("");
   const { data, isLoading, isFetching, isError, refetch } = useConversationsQuery();
 
   const conversations = data ?? [];
-  const filtered = filterConversations(conversations, activeFilter, search);
-  const unreadCount = conversations.filter((conversation) => conversation.unread > 0).length;
+  const filtered = searchConversations(conversations, search);
 
   return (
     <div className="flex h-full min-w-0 overflow-hidden bg-surface">
-      <InboxRail />
+      <InboxRail
+        activeSection={activeSection}
+        onSectionChange={setActiveSection}
+      />
 
       <div className="flex min-w-0 flex-1 flex-col overflow-hidden bg-surface">
         <div
@@ -37,146 +41,106 @@ export function ConversationList({ selectedId, onSelect }: ConversationListProps
           aria-hidden
         />
 
-        <div className="shrink-0 bg-surface px-3 pb-2.5 pt-3">
-          <div className="mb-3 flex h-8 items-center justify-between px-1">
-            <div className="flex min-w-0 items-center gap-2">
-              <h2 className="truncate text-lg font-semibold tracking-tight text-text">
-                Conversas
-              </h2>
-              {!isLoading && !isError && conversations.length > 0 && (
-                <span className="min-w-6 rounded-full bg-accent/10 px-2 py-0.5 text-center text-[10px] font-semibold text-accent tabular-nums">
-                  {conversations.length}
-                </span>
+        {activeSection === "conversations" ? (
+          <>
+            <div className="shrink-0 bg-surface px-3 pb-2.5 pt-3">
+              <div className="mb-3 flex h-8 items-center justify-between px-1">
+                <div className="flex min-w-0 items-center gap-2">
+                  <h2 className="truncate text-lg font-semibold tracking-tight text-text">
+                    Conversas
+                  </h2>
+                  {!isLoading && !isError && conversations.length > 0 && (
+                    <span className="min-w-6 rounded-full bg-accent/10 px-2 py-0.5 text-center text-[10px] font-semibold text-accent tabular-nums">
+                      {conversations.length}
+                    </span>
+                  )}
+                </div>
+                <div className="flex items-center gap-1">
+                  <PassiveIconButton label="Nova conversa" disabled>
+                    <NewConversationIcon />
+                  </PassiveIconButton>
+                  <PassiveIconButton label="Menu" disabled>
+                    <MoreIcon />
+                  </PassiveIconButton>
+                </div>
+              </div>
+
+              <ConversationSearch value={search} onChange={setSearch} />
+            </div>
+
+            <div className="flex h-12 shrink-0 items-center gap-3 border-y border-border/40 px-4 text-text-muted">
+              <ArchiveIcon />
+              <span className="text-[13px] font-medium">Arquivadas</span>
+            </div>
+
+            <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
+              {isLoading && <ConversationListSkeleton />}
+
+              {isError && (
+                <ErrorState
+                  message="Não foi possível carregar as conversas."
+                  retry={() => refetch()}
+                />
               )}
+
+              {!isLoading && !isError && filtered.length === 0 && (
+                <ConversationListEmptyState
+                  hasSearch={search.trim().length > 0}
+                />
+              )}
+
+              {!isLoading && !isError && filtered.map((c) => (
+                <ConversationListItem
+                  key={c.id}
+                  conversation={c}
+                  selected={c.id === selectedId}
+                  onClick={() => onSelect(c)}
+                />
+              ))}
             </div>
-            <div className="flex items-center gap-1">
-              <PassiveIconButton label="Nova conversa">
-                <NewConversationIcon />
-              </PassiveIconButton>
-              <PassiveIconButton label="Menu">
-                <MoreIcon />
-              </PassiveIconButton>
-            </div>
-          </div>
-
-          <ConversationSearch value={search} onChange={setSearch} />
-
-          <div className="mt-2.5 flex gap-1.5 overflow-hidden px-0.5" aria-label="Filtros de conversas">
-            <FilterChip
-              label="Todas"
-              count={conversations.length}
-              active={activeFilter === "all"}
-              onClick={() => setActiveFilter("all")}
-            />
-            <FilterChip
-              label="Não lidas"
-              count={unreadCount}
-              active={activeFilter === "unread"}
-              onClick={() => setActiveFilter("unread")}
-            />
-          </div>
-        </div>
-
-        <div className="flex h-12 shrink-0 items-center gap-3 border-y border-border/40 px-4 text-text-muted">
-          <ArchiveIcon />
-          <span className="text-[13px] font-medium">Arquivadas</span>
-        </div>
-
-        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
-          {isLoading && <ConversationListSkeleton />}
-
-          {isError && (
-            <ErrorState
-              message="Não foi possível carregar as conversas."
-              retry={() => refetch()}
-            />
-          )}
-
-          {!isLoading && !isError && filtered.length === 0 && (
-            <ConversationListEmptyState
-              activeFilter={activeFilter}
-              hasSearch={search.trim().length > 0}
-            />
-          )}
-
-          {!isLoading && !isError && filtered.map((c) => (
-            <ConversationListItem
-              key={c.id}
-              conversation={c}
-              selected={c.id === selectedId}
-              onClick={() => onSelect(c)}
-            />
-          ))}
-        </div>
+          </>
+        ) : (
+          <ContactList
+            conversations={conversations}
+            search={contactSearch}
+            onSearchChange={setContactSearch}
+            selectedConversationId={selectedId}
+            onSelectConversation={(conversationId) => {
+              const conversation = conversations.find((item) => item.id === conversationId);
+              if (conversation) {
+                onSelect(conversation);
+              }
+            }}
+          />
+        )}
       </div>
     </div>
   );
 }
 
-export function filterConversations(
+export function searchConversations(
   conversations: Conversation[],
-  activeFilter: ConversationFilter,
   searchTerm: string
 ): Conversation[] {
   const normalizedSearch = searchTerm.trim().toLocaleLowerCase("pt-BR");
 
-  return conversations
-    .filter((conversation) => activeFilter === "all" || conversation.unread > 0)
-    .filter((conversation) => {
-      if (!normalizedSearch) return true;
+  if (!normalizedSearch) return conversations;
 
-      return (
-        conversation.contactName.toLocaleLowerCase("pt-BR").includes(normalizedSearch) ||
-        conversation.lastMessage.toLocaleLowerCase("pt-BR").includes(normalizedSearch)
-      );
-    });
-}
-
-function FilterChip({
-  label,
-  count,
-  active,
-  onClick,
-}: {
-  label: string;
-  count: number;
-  active: boolean;
-  onClick: () => void;
-}) {
-  return (
-    <button
-      type="button"
-      aria-pressed={active}
-      onClick={onClick}
-      className={[
-        "flex shrink-0 items-center gap-1.5 rounded-full border px-3 py-1.5 text-[11px] font-medium transition-colors",
-        active
-          ? "border-accent/30 bg-accent/15 text-accent"
-          : "border-border/70 bg-surface text-text-muted hover:bg-surface-raised hover:text-text",
-      ].join(" ")}
-    >
-      <span>{label}</span>
-      <span className={active ? "text-accent/75" : "text-text-muted/65"}>{count}</span>
-    </button>
+  return conversations.filter(
+    (conversation) =>
+      conversation.contactName.toLocaleLowerCase("pt-BR").includes(normalizedSearch) ||
+      conversation.lastMessage.toLocaleLowerCase("pt-BR").includes(normalizedSearch)
   );
 }
 
 function ConversationListEmptyState({
-  activeFilter,
   hasSearch,
 }: {
-  activeFilter: ConversationFilter;
   hasSearch: boolean;
 }) {
-  const title = hasSearch
-    ? "Nenhuma conversa encontrada"
-    : activeFilter === "unread"
-      ? "Nenhuma conversa não lida"
-      : "Nenhuma conversa encontrada";
-
   return (
     <div className="px-5 py-8 text-center">
-      <p className="text-[13px] font-medium text-text">{title}</p>
+      <p className="text-[13px] font-medium text-text">Nenhuma conversa encontrada</p>
       <p className="mt-1 text-[11px] leading-relaxed text-text-muted">
         {hasSearch ? "Tente buscar por outro nome ou mensagem." : "Novas conversas aparecerão aqui."}
       </p>
@@ -200,7 +164,13 @@ function ConversationListSkeleton() {
   );
 }
 
-function InboxRail() {
+function InboxRail({
+  activeSection,
+  onSectionChange,
+}: {
+  activeSection: RailSection;
+  onSectionChange: (section: RailSection) => void;
+}) {
   return (
     <nav
       className="hidden h-full w-[60px] shrink-0 flex-col items-center border-r border-border/55 bg-bg/80 py-2.5 sm:flex"
@@ -211,16 +181,24 @@ function InboxRail() {
       </RailButton>
 
       <div className="mt-3 flex flex-col gap-1.5">
-        <RailButton label="Conversas" active>
+        <RailButton
+          label="Conversas"
+          active={activeSection === "conversations"}
+          onClick={() => onSectionChange("conversations")}
+        >
           <ChatIcon />
         </RailButton>
-        <RailButton label="Notificações">
-          <NotificationIcon />
-        </RailButton>
-        <RailButton label="Contatos">
+        <RailButton
+          label="Contatos"
+          active={activeSection === "contacts"}
+          onClick={() => onSectionChange("contacts")}
+        >
           <ContactsIcon />
         </RailButton>
-        <RailButton label="Automação">
+        <RailButton label="Notificações" disabled>
+          <NotificationIcon />
+        </RailButton>
+        <RailButton label="Automação" disabled>
           <AutomationIcon />
         </RailButton>
       </div>
@@ -228,7 +206,7 @@ function InboxRail() {
       <div className="my-3 h-px w-8 bg-border/70" />
 
       <div className="mt-auto flex flex-col items-center gap-2">
-        <RailButton label="Configurações">
+        <RailButton label="Configurações" disabled>
           <SettingsIcon />
         </RailButton>
         <span className="flex h-9 w-9 items-center justify-center rounded-full bg-[linear-gradient(145deg,#1e80ff,#174a91)] text-xs font-bold text-white ring-1 ring-white/10">
@@ -242,22 +220,31 @@ function InboxRail() {
 function RailButton({
   label,
   active = false,
+  disabled = false,
+  onClick,
   children,
 }: {
   label: string;
   active?: boolean;
+  disabled?: boolean;
+  onClick?: () => void;
   children: React.ReactNode;
 }) {
   return (
     <button
       type="button"
       aria-label={label}
-      aria-disabled="true"
+      aria-disabled={disabled ? "true" : undefined}
+      disabled={disabled}
+      onClick={onClick}
+      title={disabled ? `${label} ainda não disponível` : undefined}
       className={[
         "relative flex h-10 w-10 items-center justify-center rounded-full transition-colors",
         active
           ? "bg-accent/15 text-accent"
-          : "text-text-muted hover:bg-surface-raised hover:text-text",
+          : disabled
+            ? "cursor-default text-text-muted/45 opacity-70"
+            : "text-text-muted hover:bg-surface-raised hover:text-text",
       ].join(" ")}
     >
       {active && <span className="absolute -left-2.5 h-6 w-[3px] rounded-r-full bg-accent" />}
@@ -268,17 +255,26 @@ function RailButton({
 
 function PassiveIconButton({
   label,
+  disabled = false,
   children,
 }: {
   label: string;
+  disabled?: boolean;
   children: React.ReactNode;
 }) {
   return (
     <button
       type="button"
       aria-label={label}
-      aria-disabled="true"
-      className="flex h-8 w-8 items-center justify-center rounded-full text-text-muted transition-colors hover:bg-surface-raised hover:text-text"
+      aria-disabled={disabled ? "true" : undefined}
+      disabled={disabled}
+      title={disabled ? `${label} ainda não disponível` : undefined}
+      className={[
+        "flex h-8 w-8 items-center justify-center rounded-full transition-colors",
+        disabled
+          ? "cursor-default text-text-muted/45 opacity-70"
+          : "text-text-muted hover:bg-surface-raised hover:text-text",
+      ].join(" ")}
     >
       {children}
     </button>

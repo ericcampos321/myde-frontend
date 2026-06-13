@@ -3,6 +3,7 @@ import { inboxEndpoints } from "@/modules/inbox/services/inbox.endpoints";
 import type {
   Agent,
   AiSuggestion,
+  Contact,
   Conversation,
   Message,
   SentMessage,
@@ -17,6 +18,14 @@ export async function getConversations(): Promise<Conversation[]> {
   const { data } = await apiClient.get<Conversation[]>(
     inboxEndpoints.conversations
   );
+  return data;
+}
+
+export async function getContacts(searchTerm?: string): Promise<Contact[]> {
+  const query = searchTerm?.trim()
+    ? `?${new URLSearchParams({ q: searchTerm.trim() }).toString()}`
+    : "";
+  const { data } = await apiClient.get<Contact[]>(`${inboxEndpoints.contacts}${query}`);
   return data;
 }
 
