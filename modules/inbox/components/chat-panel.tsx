@@ -1,23 +1,21 @@
 "use client";
 
 import { useConversationMessagesQuery } from "@/modules/inbox/hooks/use-conversation-messages-query";
-import { useConversationsQuery } from "@/modules/inbox/hooks/use-conversations-query";
 import { MessageList } from "./message-list";
 import { MessageComposer } from "./message-composer";
 import { Avatar } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import type { Conversation } from "@/modules/inbox/types/inbox.types";
 
 interface ChatPanelProps {
   conversationId: string;
+  conversation: Conversation | null;
   onBack: () => void;
 }
 
-export function ChatPanel({ conversationId, onBack }: ChatPanelProps) {
-  const { data: conversations } = useConversationsQuery();
+export function ChatPanel({ conversationId, conversation, onBack }: ChatPanelProps) {
   const { data: messages = [], isLoading, isError, refetch } = useConversationMessagesQuery(conversationId);
-
-  const conversation = conversations?.find((c) => c.id === conversationId);
 
   return (
     <div className="flex h-full flex-col bg-bg">

@@ -24,9 +24,9 @@ export function ConversationListItem({
       onClick={onClick}
       className={cn(
         "group relative flex h-[76px] w-full items-center gap-3.5 px-4 text-left transition-colors duration-150",
-        "after:absolute after:bottom-0 after:left-[76px] after:right-3 after:h-px after:bg-border/40",
-        "hover:bg-surface-raised/55 focus-visible:outline-none focus-visible:bg-surface-raised/80",
-        selected && "bg-accent/[0.075] hover:bg-accent/[0.095]"
+        "after:absolute after:bottom-0 after:left-[78px] after:right-4 after:h-px after:bg-border/30",
+        "hover:bg-surface-raised/60 focus-visible:outline-none focus-visible:bg-surface-raised/85",
+        selected && "bg-accent/[0.08] hover:bg-accent/[0.1]"
       )}
       aria-pressed={selected}
       aria-label={`Conversa com ${contactName}`}
@@ -34,7 +34,7 @@ export function ConversationListItem({
       {/* Barra de seleção à esquerda — sutil */}
       <span
         className={cn(
-          "absolute left-0 top-1/2 h-10 w-[3px] -translate-y-1/2 rounded-r-full bg-accent shadow-[0_0_12px_rgba(30,128,255,0.25)] transition-opacity",
+          "absolute left-0 top-1/2 h-11 w-[3px] -translate-y-1/2 rounded-r-full bg-accent shadow-[0_0_12px_rgba(30,128,255,0.22)] transition-opacity",
           selected ? "opacity-100" : "opacity-0"
         )}
         aria-hidden
@@ -44,7 +44,7 @@ export function ConversationListItem({
         name={contactName}
         color={avatarColor}
         size="lg"
-        className="h-12 w-12 ring-1 ring-white/5"
+        className="h-[50px] w-[50px] ring-1 ring-white/5"
       />
 
       <div className="min-w-0 flex-1">
@@ -70,7 +70,7 @@ export function ConversationListItem({
         <div className="mt-0.5 flex items-center justify-between gap-2">
           <span
             className={cn(
-              "truncate text-[12.5px] leading-5",
+              "truncate text-[12.5px] leading-5 pr-2",
               unread > 0 ? "text-text/85" : "text-text-muted/90"
             )}
           >

@@ -21,7 +21,7 @@ export function ConversationSearch({
         placeholder={placeholder}
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        className="h-[42px] rounded-full border-transparent bg-surface-raised/90 pl-10 pr-4 text-[13px] shadow-inner shadow-black/10 placeholder:text-text-muted/80 focus:border-accent/80 focus:bg-surface-raised focus:ring-accent/50"
+        className="h-[42px] rounded-full border border-transparent bg-bg/55 pl-10 pr-4 text-[13px] shadow-inner shadow-black/10 placeholder:text-text-muted/75 focus:border-accent/70 focus:bg-surface-raised/95 focus:ring-2 focus:ring-accent/20"
         aria-label="Buscar conversa"
       />
     </div>

@@ -20,7 +20,7 @@ export function AppShell({ header, sidebar, main, showMain = true }: AppShellPro
         {/* Sidebar — sempre visível no desktop, oculta no mobile quando há conversa ativa */}
         <aside
           className={[
-            "flex w-full shrink-0 flex-col overflow-hidden border-r border-border/60 bg-surface sm:w-[400px] md:w-[420px] xl:w-[440px]",
+            "flex w-full shrink-0 flex-col overflow-hidden border-r border-border/60 bg-surface sm:w-[420px] md:w-[440px] xl:w-[456px]",
             showMain ? "hidden sm:flex" : "flex",
           ].join(" ")}
         >

@@ -36,6 +36,10 @@ export async function getMessages(conversationId: string): Promise<Message[]> {
   return data;
 }
 
+export async function markConversationAsRead(conversationId: string): Promise<void> {
+  await apiClient.post(inboxEndpoints.conversationRead(conversationId));
+}
+
 export async function suggestReply(
   conversationId: string
 ): Promise<AiSuggestion> {

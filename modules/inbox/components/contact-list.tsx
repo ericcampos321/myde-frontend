@@ -99,9 +99,9 @@ function ContactListSkeleton() {
       {Array.from({ length: 5 }).map((_, index) => (
         <div
           key={index}
-          className="flex h-[76px] items-center gap-3.5 border-b border-border/35 px-4"
+          className="flex h-[76px] items-center gap-3.5 border-b border-border/30 px-4"
         >
-          <Skeleton className="h-12 w-12 shrink-0 rounded-full" />
+          <Skeleton className="h-[50px] w-[50px] shrink-0 rounded-full" />
           <div className="flex-1 space-y-2">
             <Skeleton className="h-3 w-3/5" />
             <Skeleton className="h-3 w-2/5" />

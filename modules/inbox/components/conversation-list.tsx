@@ -1,7 +1,6 @@
 "use client";
 
-import { useState } from "react";
-import { useConversationsQuery } from "@/modules/inbox/hooks/use-conversations-query";
+import { useCallback, useMemo, useState } from "react";
 import { ConversationSearch } from "./conversation-search";
 import { ConversationListItem } from "./conversation-list-item";
 import { ContactList } from "./contact-list";
@@ -12,24 +11,64 @@ import type { Conversation } from "@/modules/inbox/types/inbox.types";
 type RailSection = "conversations" | "contacts";
 
 interface ConversationListProps {
+  conversations: Conversation[];
+  isLoading: boolean;
+  isFetching: boolean;
+  isError: boolean;
+  onRetry: () => void;
   selectedId: string | null;
   onSelect: (c: Conversation) => void;
 }
 
-export function ConversationList({ selectedId, onSelect }: ConversationListProps) {
+export function ConversationList({
+  conversations,
+  isLoading,
+  isFetching,
+  isError,
+  onRetry,
+  selectedId,
+  onSelect,
+}: ConversationListProps) {
   const [activeSection, setActiveSection] = useState<RailSection>("conversations");
   const [search, setSearch] = useState("");
   const [contactSearch, setContactSearch] = useState("");
-  const { data, isLoading, isFetching, isError, refetch } = useConversationsQuery();
-
-  const conversations = data ?? [];
-  const filtered = searchConversations(conversations, search);
+  const filtered = useMemo(
+    () => searchConversations(conversations, search),
+    [conversations, search]
+  );
+  const totalUnreadMessages = useMemo(
+    () =>
+      conversations.reduce(
+        (total, conversation) => total + Math.max(conversation.unread, 0),
+        0
+      ),
+    [conversations]
+  );
+  const handleSectionChange = useCallback((section: RailSection) => {
+    setActiveSection(section);
+  }, []);
+  const handleConversationSelect = useCallback(
+    (conversation: Conversation) => {
+      onSelect(conversation);
+    },
+    [onSelect]
+  );
+  const handleContactConversationSelect = useCallback(
+    (conversationId: string) => {
+      const conversation = conversations.find((item) => item.id === conversationId);
+      if (conversation) {
+        onSelect(conversation);
+      }
+    },
+    [conversations, onSelect]
+  );
 
   return (
     <div className="flex h-full min-w-0 overflow-hidden bg-surface">
       <InboxRail
         activeSection={activeSection}
-        onSectionChange={setActiveSection}
+        onSectionChange={handleSectionChange}
+        unreadCount={totalUnreadMessages}
       />
 
       <div className="flex min-w-0 flex-1 flex-col overflow-hidden bg-surface">
@@ -68,7 +107,7 @@ export function ConversationList({ selectedId, onSelect }: ConversationListProps
               <ConversationSearch value={search} onChange={setSearch} />
             </div>
 
-            <div className="flex h-12 shrink-0 items-center gap-3 border-y border-border/40 px-4 text-text-muted">
+            <div className="flex h-11 shrink-0 items-center gap-3 border-y border-border/35 px-4 text-text-muted transition-colors hover:bg-surface-raised/35">
               <ArchiveIcon />
               <span className="text-[13px] font-medium">Arquivadas</span>
             </div>
@@ -79,7 +118,7 @@ export function ConversationList({ selectedId, onSelect }: ConversationListProps
               {isError && (
                 <ErrorState
                   message="Não foi possível carregar as conversas."
-                  retry={() => refetch()}
+                  retry={onRetry}
                 />
               )}
 
@@ -94,7 +133,7 @@ export function ConversationList({ selectedId, onSelect }: ConversationListProps
                   key={c.id}
                   conversation={c}
                   selected={c.id === selectedId}
-                  onClick={() => onSelect(c)}
+                  onClick={() => handleConversationSelect(c)}
                 />
               ))}
             </div>
@@ -105,12 +144,7 @@ export function ConversationList({ selectedId, onSelect }: ConversationListProps
             search={contactSearch}
             onSearchChange={setContactSearch}
             selectedConversationId={selectedId}
-            onSelectConversation={(conversationId) => {
-              const conversation = conversations.find((item) => item.id === conversationId);
-              if (conversation) {
-                onSelect(conversation);
-              }
-            }}
+            onSelectConversation={handleContactConversationSelect}
           />
         )}
       </div>
@@ -152,8 +186,8 @@ function ConversationListSkeleton() {
   return (
     <div className="flex flex-col">
       {Array.from({ length: 5 }).map((_, i) => (
-        <div key={i} className="flex h-[76px] items-center gap-3.5 border-b border-border/35 px-4">
-          <Skeleton className="h-12 w-12 shrink-0 rounded-full" />
+        <div key={i} className="flex h-[76px] items-center gap-3.5 border-b border-border/30 px-4">
+          <Skeleton className="h-[50px] w-[50px] shrink-0 rounded-full" />
           <div className="flex-1 space-y-2">
             <Skeleton className="h-3 w-3/4" />
             <Skeleton className="h-3 w-1/2" />
@@ -167,24 +201,29 @@ function ConversationListSkeleton() {
 function InboxRail({
   activeSection,
   onSectionChange,
+  unreadCount,
 }: {
   activeSection: RailSection;
   onSectionChange: (section: RailSection) => void;
+  unreadCount: number;
 }) {
   return (
     <nav
-      className="hidden h-full w-[60px] shrink-0 flex-col items-center border-r border-border/55 bg-bg/80 py-2.5 sm:flex"
+      className="hidden h-full w-[60px] shrink-0 flex-col items-center border-r border-border/50 bg-[#0a1322] py-3 sm:flex"
       aria-label="Atalhos visuais do inbox"
     >
-      <RailButton label="Myde Inbox">
-        <InboxIcon />
-      </RailButton>
+      <div className="flex w-full justify-center px-2">
+        <RailButton label="Myde Inbox">
+          <InboxIcon />
+        </RailButton>
+      </div>
 
-      <div className="mt-3 flex flex-col gap-1.5">
+      <div className="mt-4 flex flex-col gap-1.5">
         <RailButton
           label="Conversas"
           active={activeSection === "conversations"}
           onClick={() => onSectionChange("conversations")}
+          badgeCount={unreadCount}
         >
           <ChatIcon />
         </RailButton>
@@ -203,13 +242,13 @@ function InboxRail({
         </RailButton>
       </div>
 
-      <div className="my-3 h-px w-8 bg-border/70" />
+      <div className="my-4 h-px w-8 bg-white/8" />
 
-      <div className="mt-auto flex flex-col items-center gap-2">
+      <div className="mt-auto flex flex-col items-center gap-2.5 pb-1">
         <RailButton label="Configurações" disabled>
           <SettingsIcon />
         </RailButton>
-        <span className="flex h-9 w-9 items-center justify-center rounded-full bg-[linear-gradient(145deg,#1e80ff,#174a91)] text-xs font-bold text-white ring-1 ring-white/10">
+        <span className="flex h-10 w-10 items-center justify-center rounded-full bg-[linear-gradient(145deg,#1e80ff,#174a91)] text-xs font-bold text-white ring-1 ring-white/10">
           M
         </span>
       </div>
@@ -222,12 +261,14 @@ function RailButton({
   active = false,
   disabled = false,
   onClick,
+  badgeCount = 0,
   children,
 }: {
   label: string;
   active?: boolean;
   disabled?: boolean;
   onClick?: () => void;
+  badgeCount?: number;
   children: React.ReactNode;
 }) {
   return (
@@ -239,15 +280,20 @@ function RailButton({
       onClick={onClick}
       title={disabled ? `${label} ainda não disponível` : undefined}
       className={[
-        "relative flex h-10 w-10 items-center justify-center rounded-full transition-colors",
+        "relative flex h-10 w-10 items-center justify-center rounded-full transition-all duration-150",
         active
-          ? "bg-accent/15 text-accent"
+          ? "bg-accent/16 text-accent shadow-[inset_0_0_0_1px_rgba(30,128,255,0.1)]"
           : disabled
-            ? "cursor-default text-text-muted/45 opacity-70"
-            : "text-text-muted hover:bg-surface-raised hover:text-text",
+            ? "cursor-default text-text-muted/35 opacity-65"
+            : "text-text-muted hover:bg-white/6 hover:text-text",
       ].join(" ")}
     >
-      {active && <span className="absolute -left-2.5 h-6 w-[3px] rounded-r-full bg-accent" />}
+      {!disabled && badgeCount > 0 && (
+        <span className="absolute -right-0.5 -top-0.5 inline-flex min-w-[18px] items-center justify-center rounded-full bg-accent px-1.5 py-[2px] text-[10px] font-semibold leading-none text-white shadow-[0_0_0_2px_rgba(10,19,34,1)]">
+          {badgeCount > 99 ? "99+" : badgeCount}
+        </span>
+      )}
+      {active && <span className="absolute -left-[10px] h-5 w-[3px] rounded-r-full bg-accent" />}
       {children}
     </button>
   );
@@ -273,7 +319,7 @@ function PassiveIconButton({
         "flex h-8 w-8 items-center justify-center rounded-full transition-colors",
         disabled
           ? "cursor-default text-text-muted/45 opacity-70"
-          : "text-text-muted hover:bg-surface-raised hover:text-text",
+          : "text-text-muted hover:bg-surface-raised/80 hover:text-text",
       ].join(" ")}
     >
       {children}
