@@ -20,9 +20,9 @@ export function ChatPanel({ conversationId, onBack }: ChatPanelProps) {
   const conversation = conversations?.find((c) => c.id === conversationId);
 
   return (
-    <div className="flex flex-col h-full bg-bg">
+    <div className="flex h-full flex-col bg-bg">
       {/* Header do chat */}
-      <div className="shrink-0 flex items-center gap-3 px-4 h-14 border-b border-border bg-surface">
+      <div className="flex h-[60px] shrink-0 items-center gap-3 border-b border-border/70 bg-surface-raised/70 px-3 shadow-[0_1px_0_rgba(0,0,0,0.22)] sm:px-4">
         <Button
           variant="ghost"
           size="sm"
@@ -38,20 +38,21 @@ export function ChatPanel({ conversationId, onBack }: ChatPanelProps) {
             <Avatar
               name={conversation.contactName}
               color={conversation.avatarColor}
-              size="sm"
+              size="md"
             />
-            <div className="min-w-0">
-              <p className="text-sm font-semibold text-text truncate">
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-semibold text-text truncate leading-tight">
                 {conversation.contactName}
               </p>
-              <p className="text-[11px] text-text-muted truncate">
+              <p className="mt-0.5 flex items-center gap-1.5 text-[11px] text-text-muted truncate leading-tight">
+                <span className="inline-block h-1.5 w-1.5 rounded-full bg-accent/70 shrink-0" aria-hidden />
                 {conversation.contactPhone}
               </p>
             </div>
           </>
         ) : (
           <div className="flex items-center gap-3">
-            <Skeleton className="w-8 h-8 rounded-full shrink-0" />
+            <Skeleton className="w-10 h-10 rounded-full shrink-0" />
             <div className="space-y-1.5">
               <Skeleton className="h-3 w-28" />
               <Skeleton className="h-2.5 w-20" />

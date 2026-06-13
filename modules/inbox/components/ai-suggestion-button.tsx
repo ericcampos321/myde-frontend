@@ -30,23 +30,26 @@ export function AiSuggestionButton({
   return (
     <div className="relative flex flex-col items-end gap-1">
       {error && (
-        <p className="absolute bottom-full mb-1 right-0 text-[10px] text-danger bg-surface border border-border rounded px-2 py-1 whitespace-nowrap" role="alert">
+        <p
+          className="absolute bottom-full mb-1.5 right-0 z-10 max-w-[220px] whitespace-normal rounded-lg border border-border bg-surface px-2.5 py-1.5 text-[10px] text-danger shadow-lg"
+          role="alert"
+        >
           {error}
         </p>
       )}
       <Button
         type="button"
         variant="ghost"
-        size="md"
+        size="sm"
         onClick={handleClick}
-        loading={isPending}
-        disabled={disabled}
+        disabled={disabled || isPending}
         aria-label="Sugerir resposta com IA"
+        aria-busy={isPending}
         title="Sugerir resposta com IA"
-        className="text-text-muted hover:text-accent border border-border"
+        className="h-10 rounded-full border border-accent/30 bg-accent/[0.06] px-2.5 text-accent hover:border-accent/55 hover:bg-accent/15 hover:text-accent disabled:opacity-50"
       >
-        {!isPending && <SparkleIcon />}
-        <span className="hidden sm:inline text-xs">Sugerir IA</span>
+        {isPending ? <SpinnerIcon /> : <SparkleIcon />}
+        <span className="hidden text-xs xl:inline">Sugerir IA</span>
       </Button>
     </div>
   );
@@ -61,6 +64,22 @@ function SparkleIcon() {
         strokeWidth="1.5"
         strokeLinejoin="round"
       />
+    </svg>
+  );
+}
+
+function SpinnerIcon() {
+  return (
+    <svg
+      width="14"
+      height="14"
+      viewBox="0 0 24 24"
+      fill="none"
+      className="animate-spin"
+      aria-hidden
+    >
+      <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" strokeOpacity="0.25" />
+      <path d="M12 2a10 10 0 0 1 10 10" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
     </svg>
   );
 }

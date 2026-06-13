@@ -12,7 +12,7 @@ interface AppShellProps {
 export function AppShell({ header, sidebar, main, showMain = true }: AppShellProps) {
   return (
     <div className="flex flex-col h-screen overflow-hidden bg-bg">
-      <header className="shrink-0 h-14 flex items-center px-4 border-b border-border bg-surface z-10">
+      <header className="z-10 flex h-13 shrink-0 items-center border-b border-border/70 bg-surface px-4">
         {header}
       </header>
 
@@ -20,7 +20,7 @@ export function AppShell({ header, sidebar, main, showMain = true }: AppShellPro
         {/* Sidebar — sempre visível no desktop, oculta no mobile quando há conversa ativa */}
         <aside
           className={[
-            "flex flex-col shrink-0 w-full sm:w-72 md:w-80 border-r border-border bg-surface overflow-hidden",
+            "flex w-full shrink-0 flex-col overflow-hidden border-r border-border/60 bg-surface sm:w-[400px] md:w-[420px] xl:w-[440px]",
             showMain ? "hidden sm:flex" : "flex",
           ].join(" ")}
         >

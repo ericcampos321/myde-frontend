@@ -3,7 +3,7 @@ import "./globals.css";
 import { Providers } from "./providers";
 
 export const metadata: Metadata = {
-  title: "Inbox de Atendimento",
+  title: "Myde Inbox",
   description: "Desafio técnico frontend Myde",
   icons: {
     icon: "/icon.svg",

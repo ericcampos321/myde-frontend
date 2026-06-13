@@ -8,11 +8,13 @@ export interface Conversation {
   lastMessageAt: string;
 }
 
+export type MessageStatus = "sent" | "delivered" | "read" | "failed";
+
 export interface Message {
   id: string;
   direction: "in" | "out";
   body: string;
-  status: "sent" | "delivered" | "read";
+  status: MessageStatus;
   createdAt: string;
 }
 
