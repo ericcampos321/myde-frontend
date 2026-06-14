@@ -25,6 +25,8 @@ import type {
 import type {
   Agent,
   AiSuggestion,
+  AiSuggestionRiskLevel,
+  AiSuggestionRiskReason,
   Contact,
   Conversation,
   Message,
@@ -50,12 +52,7 @@ function stripControlChars(value: string): string {
   let out = "";
   for (const ch of value) {
     const code = ch.codePointAt(0) ?? 0;
-    const isControl =
-      (code <= UNIT_SEPARATOR &&
-        code !== TAB &&
-        code !== LINE_FEED &&
-        code !== CARRIAGE_RETURN) ||
-      code === DELETE;
+    const isControl = (code <= UNIT_SEPARATOR && code !== TAB && code !== LINE_FEED && code !== CARRIAGE_RETURN) || code === DELETE;
     if (!isControl) out += ch;
   }
   return out;
@@ -125,14 +122,8 @@ function sanitizeColor(value: unknown, fallback = "#6a7175"): string {
 }
 
 /** Valida valor contra whitelist de enum; fora dela usa `fallback`. */
-function sanitizeEnum<T extends string>(
-  value: unknown,
-  allowed: readonly T[],
-  fallback: T
-): T {
-  return typeof value === "string" && (allowed as readonly string[]).includes(value)
-    ? (value as T)
-    : fallback;
+function sanitizeEnum<T extends string>(value: unknown, allowed: readonly T[], fallback: T): T {
+  return typeof value === "string" && (allowed as readonly string[]).includes(value) ? (value as T) : fallback;
 }
 
 /**
@@ -143,9 +134,7 @@ export function sanitizeUrl(value: unknown): string | null {
   if (typeof value !== "string") return null;
   try {
     const url = new URL(value.trim());
-    return url.protocol === "http:" || url.protocol === "https:"
-      ? url.toString()
-      : null;
+    return url.protocol === "http:" || url.protocol === "https:" ? url.toString() : null;
   } catch {
     return null;
   }
@@ -155,6 +144,16 @@ const MESSAGE_DIRECTIONS = ["in", "out"] as const;
 const MESSAGE_STATUSES = ["sent", "delivered", "read", "failed"] as const;
 const RECENT_TARGET_TYPES = ["conversation", "contact"] as const;
 const AI_SOURCES = ["openai", "stub"] as const;
+const AI_RISK_LEVELS = ["low", "medium", "high"] as const;
+const AI_RISK_REASONS = [
+  "prompt_injection",
+  "secret_extraction",
+  "business_scope_bypass",
+  "policy_bypass",
+  "tool_abuse",
+  "cost_abuse",
+  "recurring_abuse",
+] as const;
 
 export function sanitizeAgent(raw: RawAgent): Agent {
   return {
@@ -244,8 +243,36 @@ export function sanitizeSentMessage(raw: RawSentMessage): SentMessage {
 }
 
 export function sanitizeAiSuggestion(raw: RawAiSuggestion): AiSuggestion {
+  const source =
+    typeof raw.source === "string" &&
+    (AI_SOURCES as readonly string[]).includes(raw.source)
+      ? raw.source
+      : null;
+
   return {
-    suggestion: sanitizeText(raw.suggestion),
-    source: sanitizeEnum(raw.source, AI_SOURCES, "stub"),
+    suggestion: sanitizeTextOrNull(raw.suggestion),
+    source,
+    blocked: sanitizeBoolean(raw.blocked),
+    riskLevel: sanitizeEnum<AiSuggestionRiskLevel>(
+      raw.riskLevel,
+      AI_RISK_LEVELS,
+      "low"
+    ),
+    riskReasons: sanitizeRiskReasons(raw.riskReasons),
+    userMessage: sanitizeTextOrNull(raw.userMessage),
   };
+}
+
+function sanitizeRiskReasons(value: unknown): AiSuggestionRiskReason[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  const normalized = value
+    .map((item) => sanitizeText(item))
+    .filter((item): item is AiSuggestionRiskReason =>
+      (AI_RISK_REASONS as readonly string[]).includes(item)
+    );
+
+  return [...new Set(normalized)];
 }

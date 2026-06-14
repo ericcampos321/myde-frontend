@@ -12,7 +12,7 @@ import { AiSuggestionButton } from "./ai-suggestion-button";
 import { useMeQuery } from "@/modules/inbox/hooks/use-me-query";
 import { apiClient } from "@/services/http/api-client";
 import { parseApiError } from "@/services/http/api-error";
-import type { SentMessage } from "@/modules/inbox/types/inbox.types";
+import type { AiSuggestion, SentMessage } from "@/modules/inbox/types/inbox.types";
 
 interface MessageComposerProps {
   conversationId: string;
@@ -20,6 +20,10 @@ interface MessageComposerProps {
 }
 
 type MessageState = "idle" | "success" | "error" | "sending";
+const AI_SUGGESTION_BLOCKED_FALLBACK_MESSAGE =
+  "Não consegui gerar uma sugestão segura para essa mensagem. Revise manualmente antes de responder.";
+const AI_SUGGESTION_EMPTY_FALLBACK_MESSAGE =
+  "Não foi possível gerar uma sugestão para essa conversa.";
 
 // Altura é 100% controlada por JS (sem classes Tailwind de altura), garantindo
 // o auto-resize. Vazio = compacto; cresce até o limite; depois, scroll interno.
@@ -33,6 +37,7 @@ export function MessageComposer({
   const [text, setText] = useState("");
   const [messageState, setMessageState] = useState<MessageState>("idle");
   const [errorMessage, setErrorMessage] = useState("");
+  const [suggestionMessage, setSuggestionMessage] = useState<string | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const { data: me } = useMeQuery();
 
@@ -64,8 +69,11 @@ export function MessageComposer({
     }
   }
 
-  function handleSuggestion(suggestion: string) {
-    setText(suggestion);
+  function handleSuggestion(suggestion: AiSuggestion) {
+    const outcome = resolveAiSuggestionComposerState(text, suggestion);
+
+    setText(outcome.nextText);
+    setSuggestionMessage(outcome.feedbackMessage);
     setMessageState("idle");
     setTimeout(() => textareaRef.current?.focus(), 0);
   }
@@ -78,6 +86,7 @@ export function MessageComposer({
 
     setMessageState("sending");
     setErrorMessage("");
+    setSuggestionMessage(null);
 
     try {
       await apiClient.post<SentMessage>(
@@ -106,6 +115,11 @@ export function MessageComposer({
           {errorMessage || "Erro ao enviar mensagem."}
         </p>
       )}
+      {suggestionMessage && (
+        <p className="px-4 pt-1.5 text-[11px] text-text-muted" role="status">
+          {suggestionMessage}
+        </p>
+      )}
 
       <div className="flex h-[62px] items-center gap-1.5 px-3.5">
         <FooterIconButton label="Anexar" disabled>
@@ -122,6 +136,7 @@ export function MessageComposer({
             value={text}
             onChange={(e) => {
               setText(e.target.value);
+              if (suggestionMessage) setSuggestionMessage(null);
               if (messageState !== "idle") setMessageState("idle");
               resizeTextarea();
             }}
@@ -164,6 +179,38 @@ export function MessageComposer({
       </div>
     </div>
   );
+}
+
+interface AiSuggestionComposerState {
+  nextText: string;
+  feedbackMessage: string | null;
+}
+
+export function resolveAiSuggestionComposerState(
+  currentText: string,
+  suggestion: AiSuggestion
+): AiSuggestionComposerState {
+  if (suggestion.blocked) {
+    return {
+      nextText: currentText,
+      feedbackMessage:
+        suggestion.userMessage ?? AI_SUGGESTION_BLOCKED_FALLBACK_MESSAGE,
+    };
+  }
+
+  const nextSuggestion = suggestion.suggestion?.trim() ?? "";
+
+  if (nextSuggestion.length === 0) {
+    return {
+      nextText: currentText,
+      feedbackMessage: AI_SUGGESTION_EMPTY_FALLBACK_MESSAGE,
+    };
+  }
+
+  return {
+    nextText: suggestion.suggestion ?? currentText,
+    feedbackMessage: null,
+  };
 }
 
 function FooterIconButton({

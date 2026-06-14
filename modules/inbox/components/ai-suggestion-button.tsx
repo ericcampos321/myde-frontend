@@ -3,10 +3,11 @@
 import { useState } from "react";
 import { useAiSuggestionMutation } from "@/modules/inbox/hooks/use-ai-suggestion-mutation";
 import { parseApiError } from "@/services/http/api-error";
+import type { AiSuggestion } from "@/modules/inbox/types/inbox.types";
 
 interface AiSuggestionButtonProps {
   conversationId: string;
-  onSuggestion: (text: string) => void;
+  onSuggestion: (suggestion: AiSuggestion) => void;
   disabled?: boolean;
   compact?: boolean;
   className?: string;
@@ -25,7 +26,7 @@ export function AiSuggestionButton({
   function handleClick() {
     setError(null);
     mutate(conversationId, {
-      onSuccess: (data) => onSuggestion(data.suggestion),
+      onSuccess: (data) => onSuggestion(data),
       onError: (err) => setError(parseApiError(err).message),
     });
   }

@@ -92,8 +92,98 @@ describe("enums por whitelist", () => {
   });
 
   it("source de IA inválido vira fallback 'stub'", () => {
-    const raw = { suggestion: "oi", source: "skynet" } as unknown as RawAiSuggestion;
-    expect(sanitizeAiSuggestion(raw).source).toBe("stub");
+    const raw = {
+      suggestion: "oi",
+      source: "skynet",
+      blocked: false,
+      riskLevel: "low",
+      riskReasons: [],
+      userMessage: null,
+    } as unknown as RawAiSuggestion;
+    expect(sanitizeAiSuggestion(raw).source).toBe(null);
+  });
+});
+
+describe("sanitizeAiSuggestion", () => {
+  it("preserva blocked true e suggestion null", () => {
+    const raw = {
+      suggestion: null,
+      source: null,
+      blocked: true,
+      riskLevel: "high",
+      riskReasons: ["prompt_injection", "secret_extraction"],
+      userMessage:
+        "Não consegui gerar uma sugestão segura para essa mensagem. Revise manualmente antes de responder.",
+    } as RawAiSuggestion;
+
+    expect(sanitizeAiSuggestion(raw)).toEqual({
+      suggestion: null,
+      source: null,
+      blocked: true,
+      riskLevel: "high",
+      riskReasons: ["prompt_injection", "secret_extraction"],
+      userMessage:
+        "Não consegui gerar uma sugestão segura para essa mensagem. Revise manualmente antes de responder.",
+    });
+  });
+
+  it("aceita resposta normal com suggestion string", () => {
+    const raw = {
+      suggestion: "Temos planos residenciais.",
+      source: "openai",
+      blocked: false,
+      riskLevel: "low",
+      riskReasons: [],
+      userMessage: null,
+    } as RawAiSuggestion;
+
+    expect(sanitizeAiSuggestion(raw)).toEqual({
+      suggestion: "Temos planos residenciais.",
+      source: "openai",
+      blocked: false,
+      riskLevel: "low",
+      riskReasons: [],
+      userMessage: null,
+    });
+  });
+
+  it("normaliza riskLevel inválido para low", () => {
+    const raw = {
+      suggestion: "ok",
+      source: "stub",
+      blocked: false,
+      riskLevel: "extreme",
+      riskReasons: [],
+      userMessage: null,
+    } as unknown as RawAiSuggestion;
+
+    expect(sanitizeAiSuggestion(raw).riskLevel).toBe("low");
+  });
+
+  it("deduplica e sanitiza riskReasons", () => {
+    const raw = {
+      suggestion: null,
+      source: null,
+      blocked: true,
+      riskLevel: "high",
+      riskReasons: [
+        " prompt_injection ",
+        "prompt_injection",
+        "policy_bypass",
+        "<b>policy_bypass</b>",
+        "nao-existe",
+      ],
+      userMessage: "<b>Revise</b> manualmente",
+    } as unknown as RawAiSuggestion;
+
+    expect(sanitizeAiSuggestion(raw)).toEqual({
+      suggestion: null,
+      source: null,
+      blocked: true,
+      riskLevel: "high",
+      riskReasons: ["prompt_injection", "policy_bypass"],
+      userMessage: "Revise manualmente",
+    });
   });
 });
 

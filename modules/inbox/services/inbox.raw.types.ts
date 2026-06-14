@@ -69,6 +69,10 @@ export interface RawSentMessage extends WithExtra {
 }
 
 export interface RawAiSuggestion extends WithExtra {
-  suggestion: string;
-  source: "openai" | "stub";
+  suggestion: string | null;
+  source: "openai" | "stub" | null;
+  blocked: boolean;
+  riskLevel: string;
+  riskReasons: string[];
+  userMessage: string | null;
 }

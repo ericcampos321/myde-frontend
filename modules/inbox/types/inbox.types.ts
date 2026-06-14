@@ -64,9 +64,26 @@ export interface Agent {
   };
 }
 
+export type AiSuggestionSource = "openai" | "stub";
+
+export type AiSuggestionRiskLevel = "low" | "medium" | "high";
+
+export type AiSuggestionRiskReason =
+  | "prompt_injection"
+  | "secret_extraction"
+  | "business_scope_bypass"
+  | "policy_bypass"
+  | "tool_abuse"
+  | "cost_abuse"
+  | "recurring_abuse";
+
 export interface AiSuggestion {
-  suggestion: string;
-  source: "openai" | "stub";
+  suggestion: string | null;
+  source: AiSuggestionSource | null;
+  blocked: boolean;
+  riskLevel: AiSuggestionRiskLevel;
+  riskReasons: AiSuggestionRiskReason[];
+  userMessage: string | null;
 }
 
 export interface AiSuggestPayload {
