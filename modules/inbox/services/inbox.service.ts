@@ -1,67 +1,113 @@
-import { apiClient } from "@/services/http/api-client";
+import "server-only";
+
+import { backendClient } from "@/services/http/server/backend-client";
 import { inboxEndpoints } from "@/modules/inbox/services/inbox.endpoints";
 import type {
-  Agent,
-  AiSuggestion,
-  Contact,
-  Conversation,
-  Message,
-  SentMessage,
-} from "@/modules/inbox/types/inbox.types";
+  RawAgent,
+  RawAiSuggestion,
+  RawContact,
+  RawConversation,
+  RawMessage,
+  RawRecentSearch,
+  RawSentMessage,
+} from "@/modules/inbox/services/inbox.raw.types";
+import type { SaveRecentSearchPayload } from "@/modules/inbox/types/inbox.types";
 
-export async function getMe(): Promise<Agent> {
-  const { data } = await apiClient.get<Agent>(inboxEndpoints.me);
-  return data;
+/**
+ * Service SERVER-SIDE do domínio Inbox.
+ *
+ * Fala com o backend Myde real via `backendClient`. Retorna os DTOs CRUS (`Raw*`);
+ * a sanitização para os tipos do front acontece no route handler (inbox.sanitizer.ts).
+ *
+ * `RequestContext.headers` carrega o que o route handler quer repassar ao backend
+ * (ex.: `X-Tenant-ID`, `Cookie`).
+ */
+export interface RequestContext {
+  headers?: Record<string, string>;
 }
 
-export async function getConversations(): Promise<Conversation[]> {
-  const { data } = await apiClient.get<Conversation[]>(
-    inboxEndpoints.conversations
-  );
-  return data;
+export function getMe(ctx: RequestContext = {}): Promise<RawAgent> {
+  return backendClient.get<RawAgent>(inboxEndpoints.me, { headers: ctx.headers });
 }
 
-export async function getContacts(searchTerm?: string): Promise<Contact[]> {
-  const query = searchTerm?.trim()
-    ? `?${new URLSearchParams({ q: searchTerm.trim() }).toString()}`
-    : "";
-  const { data } = await apiClient.get<Contact[]>(`${inboxEndpoints.contacts}${query}`);
-  return data;
-}
-
-export async function getMessages(conversationId: string): Promise<Message[]> {
-  const { data } = await apiClient.get<Message[]>(
-    inboxEndpoints.conversationMessages(conversationId)
-  );
-  return data;
-}
-
-export async function markConversationAsRead(conversationId: string): Promise<void> {
-  await apiClient.post(inboxEndpoints.conversationRead(conversationId));
-}
-
-export async function suggestReply(
-  conversationId: string
-): Promise<AiSuggestion> {
-  const { data } = await apiClient.post<AiSuggestion>(inboxEndpoints.aiSuggest, {
-    conversationId,
+export function getConversations(ctx: RequestContext = {}): Promise<RawConversation[]> {
+  return backendClient.get<RawConversation[]>(inboxEndpoints.conversations, {
+    headers: ctx.headers,
   });
-  return data;
 }
 
-export async function sendMessage(
+export function getContacts(
+  searchTerm: string | undefined,
+  ctx: RequestContext = {}
+): Promise<RawContact[]> {
+  const term = searchTerm?.trim();
+  const path = term
+    ? `${inboxEndpoints.contacts}?${new URLSearchParams({ q: term }).toString()}`
+    : inboxEndpoints.contacts;
+  return backendClient.get<RawContact[]>(path, { headers: ctx.headers });
+}
+
+export function getRecentSearches(ctx: RequestContext = {}): Promise<RawRecentSearch[]> {
+  return backendClient.get<RawRecentSearch[]>(inboxEndpoints.recentSearches, {
+    headers: ctx.headers,
+  });
+}
+
+export function saveRecentSearch(
+  payload: SaveRecentSearchPayload,
+  ctx: RequestContext = {}
+): Promise<void> {
+  return backendClient.post<void>(inboxEndpoints.recentSearches, payload, {
+    headers: ctx.headers,
+  });
+}
+
+export function clearRecentSearches(ctx: RequestContext = {}): Promise<void> {
+  return backendClient.delete<void>(inboxEndpoints.recentSearches, undefined, {
+    headers: ctx.headers,
+  });
+}
+
+export function getMessages(
+  conversationId: string,
+  ctx: RequestContext = {}
+): Promise<RawMessage[]> {
+  return backendClient.get<RawMessage[]>(
+    inboxEndpoints.conversationMessages(conversationId),
+    { headers: ctx.headers }
+  );
+}
+
+export function markConversationAsRead(
+  conversationId: string,
+  ctx: RequestContext = {}
+): Promise<void> {
+  return backendClient.post<void>(
+    inboxEndpoints.conversationRead(conversationId),
+    undefined,
+    { headers: ctx.headers }
+  );
+}
+
+export function suggestReply(
+  conversationId: string,
+  ctx: RequestContext = {}
+): Promise<RawAiSuggestion> {
+  return backendClient.post<RawAiSuggestion>(
+    inboxEndpoints.aiSuggest,
+    { conversationId },
+    { headers: ctx.headers }
+  );
+}
+
+export function sendMessage(
   conversationId: string,
   text: string,
-  tenantId: string
-): Promise<SentMessage> {
-  const { data } = await apiClient.post<SentMessage>(
+  ctx: RequestContext = {}
+): Promise<RawSentMessage> {
+  return backendClient.post<RawSentMessage>(
     inboxEndpoints.conversationMessages(conversationId),
     { text },
-    {
-      headers: {
-        "X-Tenant-ID": tenantId,
-      },
-    }
+    { headers: ctx.headers }
   );
-  return data;
 }

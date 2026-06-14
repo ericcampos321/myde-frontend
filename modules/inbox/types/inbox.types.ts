@@ -17,6 +17,23 @@ export interface Contact {
   updatedAt: string;
 }
 
+export interface RecentSearch {
+  id: string;
+  targetType: "conversation" | "contact";
+  targetId: string;
+  conversationId: string | null;
+  label: string;
+  subtitle: string;
+  avatarInitials: string;
+  updatedAt: string;
+  canOpen: boolean;
+}
+
+export interface SaveRecentSearchPayload {
+  targetType: RecentSearch["targetType"];
+  targetId: string;
+}
+
 export type MessageStatus = "sent" | "delivered" | "read" | "failed";
 
 export interface Message {

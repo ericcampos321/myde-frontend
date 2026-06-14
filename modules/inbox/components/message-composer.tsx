@@ -8,11 +8,11 @@ import {
   useState,
 } from "react";
 import { Textarea } from "@/components/ui/textarea";
-import { Button } from "@/components/ui/button";
 import { AiSuggestionButton } from "./ai-suggestion-button";
 import { useMeQuery } from "@/modules/inbox/hooks/use-me-query";
-import { sendMessage } from "@/modules/inbox/services/inbox.service";
+import { apiClient } from "@/services/http/api-client";
 import { parseApiError } from "@/services/http/api-error";
+import type { SentMessage } from "@/modules/inbox/types/inbox.types";
 
 interface MessageComposerProps {
   conversationId: string;
@@ -23,7 +23,7 @@ type MessageState = "idle" | "success" | "error" | "sending";
 
 // Altura é 100% controlada por JS (sem classes Tailwind de altura), garantindo
 // o auto-resize. Vazio = compacto; cresce até o limite; depois, scroll interno.
-const MIN_TEXTAREA_HEIGHT = 40;
+const MIN_TEXTAREA_HEIGHT = 42;
 const MAX_TEXTAREA_HEIGHT = 150;
 
 export function MessageComposer({
@@ -70,21 +70,6 @@ export function MessageComposer({
     setTimeout(() => textareaRef.current?.focus(), 0);
   }
 
-  async function handleCopy() {
-    const trimmed = text.trim();
-    if (!trimmed) {
-      return;
-    }
-
-    try {
-      await navigator.clipboard.writeText(trimmed);
-      setMessageState("success");
-    } catch {
-      setMessageState("error");
-      setErrorMessage("Não foi possível copiar automaticamente.");
-    }
-  }
-
   async function handleSend() {
     const trimmed = text.trim();
     if (!trimmed || !me?.id) {
@@ -95,7 +80,11 @@ export function MessageComposer({
     setErrorMessage("");
 
     try {
-      await sendMessage(conversationId, trimmed, me.id);
+      await apiClient.post<SentMessage>(
+        `/conversations/${conversationId}/messages`,
+        { text: trimmed },
+        { headers: { "X-Tenant-ID": me.id } }
+      );
       setText("");
       setMessageState("success");
       await onMessageSent?.();
@@ -111,105 +100,144 @@ export function MessageComposer({
   const isSending = messageState === "sending";
 
   return (
-    <div className="shrink-0 border-t border-border/70 bg-surface-raised/80 px-2.5 pb-1.5 pt-2 shadow-[0_-4px_16px_rgba(0,0,0,0.12)] sm:px-3.5">
-      {messageState === "success" && (
-        <p className="mb-1.5 px-1 text-[10px] text-text-muted" role="status">
-          Mensagem enviada com sucesso.
-        </p>
-      )}
+    <div className="shrink-0 border-t border-border bg-bg">
       {messageState === "error" && (
-        <p className="mb-1.5 px-1 text-[10px] text-danger" role="alert">
+        <p className="px-4 pt-1.5 text-[11px] text-danger" role="alert">
           {errorMessage || "Erro ao enviar mensagem."}
         </p>
       )}
 
-      <div className="flex items-end gap-1.5 sm:gap-2">
-        <Textarea
-          ref={textareaRef}
-          value={text}
-          onChange={(e) => {
-            setText(e.target.value);
-            if (messageState !== "idle") setMessageState("idle");
-            resizeTextarea();
-          }}
-          onKeyDown={handleKeyDown}
-          placeholder="Digite uma mensagem"
-          rows={1}
-          style={{ maxHeight: MAX_TEXTAREA_HEIGHT }}
-          className="block min-w-0 flex-1 resize-none overflow-hidden rounded-[20px] border-border/70 bg-surface px-4 py-[9px] text-sm leading-[22px] focus:border-accent/70 focus:ring-0"
-          aria-label="Campo de mensagem"
-          disabled={isSending}
-        />
+      <div className="flex h-[62px] items-center gap-1.5 px-3.5">
+        <FooterIconButton label="Anexar" disabled>
+          <PlusIcon />
+        </FooterIconButton>
 
-        <div className="flex shrink-0 items-center gap-1.5">
-          {canSuggest && (
-            <AiSuggestionButton
-              conversationId={conversationId}
-              onSuggestion={handleSuggestion}
-              disabled={isSending}
-            />
-          )}
-          <Button
-            type="button"
-            size="sm"
-            variant="ghost"
-            onClick={() => void handleCopy()}
-            disabled={!text.trim() || isSending}
-            aria-label="Copiar rascunho"
-            className="h-10 rounded-full border border-border px-2.5 disabled:opacity-50"
-          >
-            <CopyIcon />
-            <span className="hidden text-xs lg:inline">Copiar</span>
-          </Button>
-          <Button
-            type="button"
-            size="sm"
-            onClick={() => void handleSend()}
-            disabled={!canSend || !text.trim() || isSending}
-            aria-label="Enviar mensagem"
-            loading={isSending}
-            className="h-10 rounded-full bg-[linear-gradient(160deg,#2a86f5,#1565d6)] px-3 text-white shadow-[0_4px_12px_rgba(21,101,214,0.24)] hover:brightness-110 disabled:bg-none disabled:bg-surface disabled:text-text-muted disabled:shadow-none"
-          >
-            <SendIcon />
-            <span className="hidden text-xs font-semibold lg:inline">Enviar</span>
-          </Button>
+        <div className="flex min-w-0 flex-1 items-center gap-1 rounded-[22px] bg-chat-footer px-2">
+          <FooterIconButton label="Emoji" disabled compact>
+            <EmojiIcon />
+          </FooterIconButton>
+
+          <Textarea
+            ref={textareaRef}
+            value={text}
+            onChange={(e) => {
+              setText(e.target.value);
+              if (messageState !== "idle") setMessageState("idle");
+              resizeTextarea();
+            }}
+            onKeyDown={handleKeyDown}
+            placeholder="Digite uma mensagem"
+            rows={1}
+            style={{ maxHeight: MAX_TEXTAREA_HEIGHT }}
+            className="block min-w-0 flex-1 resize-none overflow-hidden border-transparent bg-transparent px-2 py-[11px] text-[15px] leading-[20px] focus:border-transparent focus:ring-0"
+            aria-label="Campo de mensagem"
+            disabled={isSending}
+          />
+
+          <div className="flex shrink-0 items-center gap-0.5">
+            {canSuggest && (
+              <AiSuggestionButton
+                conversationId={conversationId}
+                onSuggestion={handleSuggestion}
+                disabled={isSending}
+                compact
+              />
+            )}
+
+            {text.trim() ? (
+              <button
+                type="button"
+                onClick={() => void handleSend()}
+                disabled={!canSend || isSending}
+                aria-label="Enviar mensagem"
+                className="flex h-9 w-9 items-center justify-center rounded-full border-0 outline-none text-text-muted transition-colors enabled:hover:bg-text/8 enabled:hover:text-text focus:outline-none focus:ring-0 disabled:cursor-default disabled:opacity-70"
+              >
+                {isSending ? <SpinnerIcon /> : <SendIcon />}
+              </button>
+            ) : (
+              <FooterIconButton label="Gravar áudio" disabled compact>
+                <MicIcon />
+              </FooterIconButton>
+            )}
+          </div>
         </div>
       </div>
-
-      <p className="mt-1 hidden px-1 text-[9px] leading-none text-text-muted/55 sm:block">
-        Envio real via Meta WhatsApp Cloud API.
-      </p>
     </div>
+  );
+}
+
+function FooterIconButton({
+  label,
+  onClick,
+  disabled = false,
+  compact = false,
+  children,
+}: {
+  label: string;
+  onClick?: () => void;
+  disabled?: boolean;
+  compact?: boolean;
+  children: React.ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      aria-label={label}
+      title={disabled ? undefined : label}
+      onClick={onClick}
+      disabled={disabled}
+      className={[
+        "flex items-center justify-center rounded-full border-0 outline-none text-text-muted transition-colors enabled:hover:bg-text/8 enabled:hover:text-text focus:outline-none focus:ring-0 disabled:cursor-default disabled:opacity-60",
+        compact ? "h-9 w-9" : "h-10 w-10",
+      ].join(" ")}
+    >
+      {children}
+    </button>
+  );
+}
+
+function EmojiIcon() {
+  return (
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden>
+      <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="1.7" />
+      <path d="M8.5 14.5c.9 1 2.1 1.5 3.5 1.5s2.6-.5 3.5-1.5" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
+      <circle cx="9" cy="10" r="1" fill="currentColor" />
+      <circle cx="15" cy="10" r="1" fill="currentColor" />
+    </svg>
+  );
+}
+
+function PlusIcon() {
+  return (
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden>
+      <path d="M12 5v14M5 12h14" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+function SpinnerIcon() {
+  return (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" className="animate-spin" aria-hidden>
+      <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="2.5" strokeOpacity="0.25" />
+      <path d="M12 3a9 9 0 0 1 9 9" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" />
+    </svg>
   );
 }
 
 function SendIcon() {
   return (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden>
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden>
       <path d="M22 2L11 13" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
       <path d="M22 2L15 22L11 13L2 9L22 2Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
   );
 }
 
-function CopyIcon() {
+function MicIcon() {
   return (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden>
-      <rect
-        x="9"
-        y="9"
-        width="11"
-        height="11"
-        rx="2"
-        stroke="currentColor"
-        strokeWidth="2"
-      />
-      <path
-        d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-      />
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden>
+      <rect x="9" y="3" width="6" height="11" rx="3" stroke="currentColor" strokeWidth="1.8" />
+      <path d="M5 11a7 7 0 0 0 14 0M12 18v3" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
     </svg>
   );
 }

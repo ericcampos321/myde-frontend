@@ -6,12 +6,16 @@ interface ConversationSearchProps {
   value: string;
   onChange: (v: string) => void;
   placeholder?: string;
+  onFocus?: () => void;
+  onEscape?: () => void;
 }
 
 export function ConversationSearch({
   value,
   onChange,
   placeholder = "Pesquisar conversa",
+  onFocus,
+  onEscape,
 }: ConversationSearchProps) {
   return (
     <div className="relative">
@@ -21,7 +25,15 @@ export function ConversationSearch({
         placeholder={placeholder}
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        className="h-[42px] rounded-full border border-transparent bg-bg/55 pl-10 pr-4 text-[13px] shadow-inner shadow-black/10 placeholder:text-text-muted/75 focus:border-accent/70 focus:bg-surface-raised/95 focus:ring-2 focus:ring-accent/20"
+        onFocus={onFocus}
+        onKeyDown={(event) => {
+          if (event.key === "Escape") {
+            event.preventDefault();
+            event.currentTarget.blur();
+            onEscape?.();
+          }
+        }}
+        className="h-[35px] rounded-[14px] border border-transparent bg-surface-raised pl-11 pr-4 text-[14px] placeholder:text-text-muted focus:border-transparent focus:bg-surface-raised focus:ring-0"
         aria-label="Buscar conversa"
       />
     </div>

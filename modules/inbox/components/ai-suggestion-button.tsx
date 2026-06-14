@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { Button } from "@/components/ui/button";
 import { useAiSuggestionMutation } from "@/modules/inbox/hooks/use-ai-suggestion-mutation";
 import { parseApiError } from "@/services/http/api-error";
 
@@ -9,12 +8,16 @@ interface AiSuggestionButtonProps {
   conversationId: string;
   onSuggestion: (text: string) => void;
   disabled?: boolean;
+  compact?: boolean;
+  className?: string;
 }
 
 export function AiSuggestionButton({
   conversationId,
   onSuggestion,
   disabled,
+  compact = false,
+  className,
 }: AiSuggestionButtonProps) {
   const { mutate, isPending } = useAiSuggestionMutation();
   const [error, setError] = useState<string | null>(null);
@@ -37,27 +40,28 @@ export function AiSuggestionButton({
           {error}
         </p>
       )}
-      <Button
+      <button
         type="button"
-        variant="ghost"
-        size="sm"
         onClick={handleClick}
         disabled={disabled || isPending}
         aria-label="Sugerir resposta com IA"
         aria-busy={isPending}
         title="Sugerir resposta com IA"
-        className="h-10 rounded-full border border-accent/30 bg-accent/[0.06] px-2.5 text-accent hover:border-accent/55 hover:bg-accent/15 hover:text-accent disabled:opacity-50"
+        className={[
+          "flex items-center justify-center rounded-full border-0 outline-none text-text-muted transition-colors enabled:hover:bg-text/8 enabled:hover:text-text focus:outline-none focus:ring-0 disabled:cursor-default disabled:opacity-60",
+          compact ? "h-9 w-9" : "h-10 w-10",
+          className ?? "",
+        ].join(" ")}
       >
         {isPending ? <SpinnerIcon /> : <SparkleIcon />}
-        <span className="hidden text-xs xl:inline">Sugerir IA</span>
-      </Button>
+      </button>
     </div>
   );
 }
 
 function SparkleIcon() {
   return (
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden>
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden>
       <path
         d="M12 2l2.4 7.4H22l-6.2 4.5 2.4 7.4L12 17l-6.2 4.3 2.4-7.4L2 9.4h7.6L12 2z"
         stroke="currentColor"
@@ -71,8 +75,8 @@ function SparkleIcon() {
 function SpinnerIcon() {
   return (
     <svg
-      width="14"
-      height="14"
+      width="22"
+      height="22"
       viewBox="0 0 24 24"
       fill="none"
       className="animate-spin"

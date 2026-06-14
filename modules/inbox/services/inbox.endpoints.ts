@@ -6,6 +6,7 @@ export const inboxEndpoints = {
   me: "/me",
   conversations: "/conversations",
   contacts: "/contacts",
+  recentSearches: "/recent-searches",
   conversationRead: (conversationId: string) => `/conversations/${conversationId}/read`,
   conversationMessages: (conversationId: string) =>
     `/conversations/${conversationId}/messages`,

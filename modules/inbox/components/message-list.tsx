@@ -15,19 +15,9 @@ interface MessageListProps {
 }
 
 const messageListSurfaceClassName =
-  "relative isolate flex-1 overflow-y-auto px-2.5 py-4 sm:px-6 sm:py-5";
+  "chat-bg relative isolate flex-1 overflow-y-auto px-4 py-2 sm:px-[8%]";
 
-// Coluna central com largura de leitura confortável (estilo WhatsApp Web, mas
-// sem esticar de borda a borda em telas largas).
-const messageColumnClassName = "mx-auto flex w-full max-w-5xl flex-col";
-
-const messageListBackgroundStyle = {
-  backgroundImage:
-    "linear-gradient(rgba(2, 6, 13, 0.48), rgba(2, 6, 13, 0.48)), url('/brand/background-plan.png')",
-  backgroundRepeat: "repeat",
-  backgroundSize: "520px auto",
-  backgroundPosition: "center",
-} as const;
+const messageColumnClassName = "flex w-full flex-col";
 
 export function MessageList({ messages, isLoading, isError, onRetry }: MessageListProps) {
   const bottomRef = useRef<HTMLDivElement>(null);
@@ -47,10 +37,7 @@ export function MessageList({ messages, isLoading, isError, onRetry }: MessageLi
 
   if (isError) {
     return (
-      <div
-        className={`${messageListSurfaceClassName} flex items-center justify-center`}
-        style={messageListBackgroundStyle}
-      >
+      <div className={`${messageListSurfaceClassName} flex items-center justify-center`}>
         <ErrorState message="Não foi possível carregar as mensagens." retry={onRetry} />
       </div>
     );
@@ -58,10 +45,7 @@ export function MessageList({ messages, isLoading, isError, onRetry }: MessageLi
 
   if (messages.length === 0) {
     return (
-      <div
-        className={`${messageListSurfaceClassName} flex items-center justify-center`}
-        style={messageListBackgroundStyle}
-      >
+      <div className={`${messageListSurfaceClassName} flex items-center justify-center`}>
         <EmptyState
           title="Nenhuma mensagem ainda"
           description="Aguardando mensagens recebidas no WhatsApp real."
@@ -73,13 +57,16 @@ export function MessageList({ messages, isLoading, isError, onRetry }: MessageLi
   return (
     <div
       className={messageListSurfaceClassName}
-      style={messageListBackgroundStyle}
       role="log"
       aria-live="polite"
     >
-      <div className={`${messageColumnClassName} gap-1`}>
-        {messages.map((msg) => (
-          <MessageBubble key={msg.id} message={msg} />
+        <div className={`${messageColumnClassName} gap-[2px]`}>
+          {messages.map((msg, index) => (
+            <MessageBubble
+              key={msg.id}
+            message={msg}
+            groupStart={index > 0 && messages[index - 1].direction !== msg.direction}
+          />
         ))}
         <div ref={bottomRef} />
       </div>
@@ -89,10 +76,7 @@ export function MessageList({ messages, isLoading, isError, onRetry }: MessageLi
 
 function MessageListSkeleton() {
   return (
-    <div
-      className={messageListSurfaceClassName}
-      style={messageListBackgroundStyle}
-    >
+    <div className={messageListSurfaceClassName}>
       <div className={`${messageColumnClassName} gap-3`}>
         {[false, true, false, true, false].map((isOut, i) => (
           <div key={i} className={`flex px-1 ${isOut ? "justify-end" : "justify-start"}`}>

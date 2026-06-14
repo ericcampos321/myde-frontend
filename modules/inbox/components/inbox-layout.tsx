@@ -1,11 +1,9 @@
 "use client";
 
-import Image from "next/image";
 import { AppShell } from "@/components/shared/app-shell";
 import { ConversationList } from "./conversation-list";
 import { ChatPanel } from "./chat-panel";
 import { NoConversationSelected } from "./no-conversation-selected";
-import { useMeQuery } from "@/modules/inbox/hooks/use-me-query";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useConversationsQuery } from "@/modules/inbox/hooks/use-conversations-query";
 import { useMarkConversationReadMutation } from "@/modules/inbox/hooks/use-mark-conversation-read-mutation";
@@ -13,7 +11,6 @@ import type { Conversation } from "@/modules/inbox/types/inbox.types";
 
 export function InboxLayout() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const { data: me } = useMeQuery();
   const {
     data,
     isLoading,
@@ -99,20 +96,8 @@ export function InboxLayout() {
     selectedUnreadMarker,
   ]);
 
-  const header = (
-    <div className="flex items-center justify-between w-full">
-      <MydeLogo />
-      {me && (
-        <span className="text-xs text-text-muted hidden sm:block">
-          {me.name} · {me.role}
-        </span>
-      )}
-    </div>
-  );
-
   return (
     <AppShell
-      header={header}
       sidebar={
         <ConversationList
           conversations={conversations}
@@ -150,17 +135,4 @@ function buildUnreadMarker(conversation: Conversation | null): string | null {
     conversation.unread,
     conversation.lastMessageAt ?? "",
   ].join(":");
-}
-
-function MydeLogo() {
-  return (
-    <Image
-      src="/brand/myde-inbox-logo.png"
-      alt="Myde Inbox"
-      width={2508}
-      height={627}
-      priority
-      className="w-[130px] sm:w-[160px] h-auto object-contain mix-blend-screen"
-    />
-  );
 }

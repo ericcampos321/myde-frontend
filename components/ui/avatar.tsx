@@ -27,7 +27,7 @@ export function Avatar({ name, color, size = "md", className }: AvatarProps) {
         sizes[size],
         className
       )}
-      style={{ backgroundColor: color ?? "#1E80FF" }}
+      style={{ backgroundColor: color ?? "#6a7175" }}
       aria-hidden
     >
       {initials}

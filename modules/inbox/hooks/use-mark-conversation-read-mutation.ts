@@ -1,5 +1,5 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { markConversationAsRead } from "@/modules/inbox/services/inbox.service";
+import { apiClient } from "@/services/http/api-client";
 import { inboxQueryKeys } from "./inbox-query-keys";
 import type { Conversation } from "@/modules/inbox/types/inbox.types";
 
@@ -9,11 +9,10 @@ export function useMarkConversationReadMutation() {
   return useMutation({
     mutationFn: ({
       conversationId,
-      marker,
     }: {
       conversationId: string;
       marker: string;
-    }) => markConversationAsRead(conversationId),
+    }) => apiClient.post<void>(`/conversations/${conversationId}/read`),
     onSuccess: (_data, variables) => {
       queryClient.setQueryData<Conversation[] | undefined>(
         inboxQueryKeys.conversations,

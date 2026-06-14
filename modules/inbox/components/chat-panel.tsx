@@ -16,16 +16,20 @@ interface ChatPanelProps {
 
 export function ChatPanel({ conversationId, conversation, onBack }: ChatPanelProps) {
   const { data: messages = [], isLoading, isError, refetch } = useConversationMessagesQuery(conversationId);
+  const subtitle = conversation
+    ? conversation.unread > 0
+      ? `${conversation.unread} mensagem${conversation.unread > 1 ? "s" : ""} não lida${conversation.unread > 1 ? "s" : ""}`
+      : "Atendimento no WhatsApp"
+    : "";
 
   return (
     <div className="flex h-full flex-col bg-bg">
-      {/* Header do chat */}
-      <div className="flex h-[60px] shrink-0 items-center gap-3 border-b border-border/70 bg-surface-raised/70 px-3 shadow-[0_1px_0_rgba(0,0,0,0.22)] sm:px-4">
+      <div className="flex h-[60px] shrink-0 items-center gap-3 border-b border-border bg-chat-header px-4">
         <Button
           variant="ghost"
           size="sm"
           onClick={onBack}
-          className="sm:hidden -ml-1"
+          className="sm:hidden -ml-1.5"
           aria-label="Voltar para lista"
         >
           <BackIcon />
@@ -39,13 +43,20 @@ export function ChatPanel({ conversationId, conversation, onBack }: ChatPanelPro
               size="md"
             />
             <div className="min-w-0 flex-1">
-              <p className="text-sm font-semibold text-text truncate leading-tight">
+              <p className="truncate text-[16px] font-semibold leading-tight text-text">
                 {conversation.contactName}
               </p>
-              <p className="mt-0.5 flex items-center gap-1.5 text-[11px] text-text-muted truncate leading-tight">
-                <span className="inline-block h-1.5 w-1.5 rounded-full bg-accent/70 shrink-0" aria-hidden />
-                {conversation.contactPhone}
+              <p className="mt-0.5 truncate text-[13px] leading-tight text-text-muted">
+                {subtitle}
               </p>
+            </div>
+            <div className="flex items-center gap-1">
+              <HeaderIconButton label="Pesquisar na conversa">
+                <HeaderSearchIcon />
+              </HeaderIconButton>
+              <HeaderIconButton label="Mais opções">
+                <HeaderMenuIcon />
+              </HeaderIconButton>
             </div>
           </>
         ) : (
@@ -77,11 +88,49 @@ export function ChatPanel({ conversationId, conversation, onBack }: ChatPanelPro
   );
 }
 
+function HeaderIconButton({
+  label,
+  children,
+}: {
+  label: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      aria-label={label}
+      title={label}
+      className="flex h-10 w-10 items-center justify-center rounded-full border-0 outline-none text-text-muted transition-colors hover:bg-surface-active hover:text-text focus:outline-none focus:ring-0"
+    >
+      {children}
+    </button>
+  );
+}
+
 function BackIcon() {
   return (
     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden>
       <path d="M19 12H5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
       <path d="M12 19l-7-7 7-7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+function HeaderSearchIcon() {
+  return (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden>
+      <circle cx="11" cy="11" r="7" stroke="currentColor" strokeWidth="1.8" />
+      <path d="m20 20-3.5-3.5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+function HeaderMenuIcon() {
+  return (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden>
+      <circle cx="12" cy="5" r="1.5" fill="currentColor" />
+      <circle cx="12" cy="12" r="1.5" fill="currentColor" />
+      <circle cx="12" cy="19" r="1.5" fill="currentColor" />
     </svg>
   );
 }

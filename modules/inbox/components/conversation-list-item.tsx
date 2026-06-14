@@ -23,43 +23,40 @@ export function ConversationListItem({
     <button
       onClick={onClick}
       className={cn(
-        "group relative flex h-[76px] w-full items-center gap-3.5 px-4 text-left transition-colors duration-150",
-        "after:absolute after:bottom-0 after:left-[78px] after:right-4 after:h-px after:bg-border/30",
-        "hover:bg-surface-raised/60 focus-visible:outline-none focus-visible:bg-surface-raised/85",
-        selected && "bg-accent/[0.08] hover:bg-accent/[0.1]"
+        "group relative flex h-[72px] w-full items-center gap-3 px-4 text-left transition-colors duration-150",
+        "focus-visible:outline-none",
+        selected
+          ? "bg-surface-active"
+          : "bg-transparent hover:bg-surface-raised focus-visible:bg-surface-raised"
       )}
       aria-pressed={selected}
       aria-label={`Conversa com ${contactName}`}
     >
-      {/* Barra de seleção à esquerda — sutil */}
-      <span
-        className={cn(
-          "absolute left-0 top-1/2 h-11 w-[3px] -translate-y-1/2 rounded-r-full bg-accent shadow-[0_0_12px_rgba(30,128,255,0.22)] transition-opacity",
-          selected ? "opacity-100" : "opacity-0"
-        )}
-        aria-hidden
-      />
-
       <Avatar
         name={contactName}
         color={avatarColor}
         size="lg"
-        className="h-[50px] w-[50px] ring-1 ring-white/5"
+        className="h-[49px] w-[49px]"
       />
 
-      <div className="min-w-0 flex-1">
+      <div
+        className={cn(
+          "flex h-full min-w-0 flex-1 flex-col justify-center border-b",
+          selected ? "border-transparent" : "border-border"
+        )}
+      >
         <div className="flex items-baseline justify-between gap-2">
           <span
             className={cn(
-              "truncate text-[14px] leading-5",
-              unread > 0 ? "font-semibold text-text" : "font-medium text-text"
+              "truncate text-[16px] leading-5",
+              unread > 0 ? "font-normal text-text" : "font-normal text-text"
             )}
           >
             {contactName}
           </span>
           <span
             className={cn(
-              "shrink-0 text-[10.5px] tabular-nums",
+              "shrink-0 text-[12px] tabular-nums",
               unread > 0 ? "font-medium text-accent" : "text-text-muted/80"
             )}
           >
@@ -70,13 +67,13 @@ export function ConversationListItem({
         <div className="mt-0.5 flex items-center justify-between gap-2">
           <span
             className={cn(
-              "truncate text-[12.5px] leading-5 pr-2",
-              unread > 0 ? "text-text/85" : "text-text-muted/90"
+              "truncate pr-2 text-[14px] leading-5",
+              unread > 0 ? "text-text/85" : "text-text-muted"
             )}
           >
             {lastMessage || "Sem mensagens ainda"}
           </span>
-          <Badge count={unread} />
+          <Badge count={unread} className="min-w-5 h-5 px-1.5 text-[11px]" />
         </div>
       </div>
     </button>

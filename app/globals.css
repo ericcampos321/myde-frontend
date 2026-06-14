@@ -1,25 +1,47 @@
 @import "tailwindcss";
 
 :root {
-  --bg: #02060D;
-  --surface: #1b2635;
-  --surface-raised: #1b2635;
-  --border: #1b2635;
-  --accent: #1E80FF;
-  --accent-hover: #3B8FFF;
-  --text: #F8FAFC;
-  --text-muted: #7C8CA3;
-  --danger: #EF4444;
-  --danger-muted: #7F1D1D;
+  --bg: #0b141a;
+  --surface: #161717;
+  --surface-raised: #202c33;
+  --surface-active: #2a3942;
+  --border: #222d34;
+  --accent: #00a884;
+  --accent-hover: #06cf9c;
+  --sidebar: var(--surface);
+  --sidebar-rail: #1d1f1f;
+  --chat-header: var(--surface);
+  --chat-footer: var(--surface-raised);
+  --chat-input: var(--surface-active);
+  --bubble-in: #202c33;
+  --bubble-out: #005c4b;
+  --accent-gradient: linear-gradient(160deg, var(--accent-hover), var(--accent));
+  --accent-avatar-gradient: linear-gradient(145deg, var(--accent), #045c4a);
+  --accent-shadow: rgba(0, 168, 132, 0.24);
+  --text: #e9edef;
+  --text-muted: #8696a0;
+  --danger: #f15c6d;
+  --danger-muted: #5c1f27;
+  --text-meta: rgba(233, 237, 239, 0.6);
+  --scroll-thumb: #374045;
+  --divider-strong: rgba(255, 255, 255, 0.08);
 }
 
 @theme inline {
   --color-bg: var(--bg);
   --color-surface: var(--surface);
   --color-surface-raised: var(--surface-raised);
+  --color-surface-active: var(--surface-active);
   --color-border: var(--border);
   --color-accent: var(--accent);
   --color-accent-hover: var(--accent-hover);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-rail: var(--sidebar-rail);
+  --color-chat-header: var(--chat-header);
+  --color-chat-footer: var(--chat-footer);
+  --color-chat-input: var(--chat-input);
+  --color-bubble-in: var(--bubble-in);
+  --color-bubble-out: var(--bubble-out);
   --color-text: var(--text);
   --color-text-muted: var(--text-muted);
   --color-danger: var(--danger);
@@ -30,6 +52,36 @@
   box-sizing: border-box;
 }
 
+.chat-bg {
+  background-color: var(--bg);
+  background-image:
+    linear-gradient(rgba(11, 20, 26, 0.9), rgba(11, 20, 26, 0.9)),
+    url("/brand/background-plan.png");
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: cover;
+}
+
+.bubble-sent::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  right: -8px;
+  border: 8px solid transparent;
+  border-left-color: var(--bubble-out);
+  border-top-width: 0;
+}
+
+.bubble-recv::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: -8px;
+  border: 8px solid transparent;
+  border-right-color: var(--bubble-in);
+  border-top-width: 0;
+}
+
 html,
 body {
   height: 100%;
@@ -38,20 +90,20 @@ body {
 body {
   background: var(--bg);
   color: var(--text);
-  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
   -webkit-font-smoothing: antialiased;
 }
 
 ::-webkit-scrollbar {
-  width: 4px;
-  height: 4px;
+  width: 5px;
+  height: 5px;
 }
 ::-webkit-scrollbar-track {
   background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: var(--border);
-  border-radius: 4px;
+  background: var(--scroll-thumb);
+  border-radius: 3px;
 }
 ::-webkit-scrollbar-thumb:hover {
   background: var(--text-muted);

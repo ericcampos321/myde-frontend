@@ -1,20 +1,9 @@
 import { EmptyState } from "@/components/ui/empty-state";
 
-const panelBackgroundStyle = {
-  backgroundImage:
-    "linear-gradient(rgba(2, 6, 13, 0.55), rgba(2, 6, 13, 0.55)), url('/brand/background-plan.png')",
-  backgroundRepeat: "repeat",
-  backgroundSize: "560px auto",
-  backgroundPosition: "center",
-} as const;
-
 export function NoConversationSelected() {
   return (
-    <div
-      className="flex flex-1 items-center justify-center"
-      style={panelBackgroundStyle}
-    >
-      <div className="rounded-2xl border border-border/60 bg-surface/70 px-2 py-3 backdrop-blur-sm">
+    <div className="chat-bg flex flex-1 items-center justify-center">
+      <div className="max-w-md rounded-2xl px-6 py-4 text-center">
         <EmptyState
           icon={
             <span className="flex h-16 w-16 items-center justify-center rounded-2xl bg-accent/10 text-accent">
