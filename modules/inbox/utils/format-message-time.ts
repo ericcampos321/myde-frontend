@@ -1,5 +1,7 @@
-export function formatMessageTime(iso: string): string {
+export function formatMessageTime(iso: string | null): string {
+  if (!iso) return "";
   const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return "";
   const now = new Date();
   const isToday =
     date.getDate() === now.getDate() &&

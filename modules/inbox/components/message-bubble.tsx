@@ -11,10 +11,14 @@ export function MessageBubble({ message, groupStart = false }: MessageBubbleProp
   const isOut = message.direction === "out";
   const isOptimistic = message.id.startsWith("optimistic-");
 
-  const time = new Date(message.createdAt).toLocaleTimeString("pt-BR", {
-    hour: "2-digit",
-    minute: "2-digit",
-  });
+  const createdAt = message.createdAt ? new Date(message.createdAt) : null;
+  const time =
+    createdAt && !Number.isNaN(createdAt.getTime())
+      ? createdAt.toLocaleTimeString("pt-BR", {
+          hour: "2-digit",
+          minute: "2-digit",
+        })
+      : "";
 
   const isFailed = isOut && message.status === "failed";
 

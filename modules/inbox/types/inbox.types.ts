@@ -5,7 +5,7 @@ export interface Conversation {
   avatarColor: string;
   unread: number;
   lastMessage: string;
-  lastMessageAt: string;
+  lastMessageAt: string | null;
 }
 
 export interface Contact {
@@ -13,8 +13,8 @@ export interface Contact {
   name: string;
   phone: string;
   profileName: string | null;
-  createdAt: string;
-  updatedAt: string;
+  createdAt: string | null;
+  updatedAt: string | null;
 }
 
 export interface RecentSearch {
@@ -25,7 +25,7 @@ export interface RecentSearch {
   label: string;
   subtitle: string;
   avatarInitials: string;
-  updatedAt: string;
+  updatedAt: string | null;
   canOpen: boolean;
 }
 
@@ -41,7 +41,7 @@ export interface Message {
   direction: "in" | "out";
   body: string;
   status: MessageStatus;
-  createdAt: string;
+  createdAt: string | null;
 }
 
 export interface SentMessage {
@@ -51,7 +51,7 @@ export interface SentMessage {
   body: string;
   status: string;
   externalMessageId: string | null;
-  createdAt: string;
+  createdAt: string | null;
 }
 
 export interface Agent {

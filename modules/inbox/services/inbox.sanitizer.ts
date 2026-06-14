@@ -1,9 +1,17 @@
 /**
- * Sanitização das respostas do backend Inbox.
+ * Sanitizacao das respostas do backend Inbox.
  *
- * Único lugar onde DTOs crus (`Raw*`) viram os tipos limpos consumidos pelo front
- * (`inbox.types.ts`). Cada função escolhe EXPLICITAMENTE os campos conhecidos —
- * qualquer campo extra do backend é descartado e nunca chega ao browser.
+ * Faz DUAS coisas, ambas centralizadas aqui:
+ *
+ * 1. Sanitizacao de SHAPE - converte DTOs crus (`Raw*`) nos tipos limpos do front
+ *    (`inbox.types.ts`), escolhendo explicitamente os campos conhecidos. Qualquer
+ *    campo extra do backend e descartado e nunca chega ao browser.
+ *
+ * 2. Sanitizacao de CONTEUDO - todo texto externo (backend/usuario/WhatsApp/IA) passa
+ *    por `sanitizeText`, que remove markup HTML (`<...>`) e caracteres de controle.
+ *    O texto e tratado como texto puro; nenhum HTML do backend e interpretado.
+ *    (A exibicao usa renderizacao de texto do React, que ja escapa - aqui e a
+ *    barreira na camada de dados, sem entity-encode para nao causar duplo-escape.)
  */
 import type {
   RawAgent,
@@ -24,27 +32,151 @@ import type {
   SentMessage,
 } from "@/modules/inbox/types/inbox.types";
 
+// Qualquer markup do tipo <...> (tags HTML, <script>, <img onerror>, etc.).
+const HTML_TAGS = /<[^>]*>/g;
+
+const TAB = 0x09;
+const LINE_FEED = 0x0a;
+const CARRIAGE_RETURN = 0x0d;
+const UNIT_SEPARATOR = 0x1f;
+const DELETE = 0x7f;
+
+/**
+ * Remove caracteres de controle (C0 ate U+001F e DEL U+007F), preservando
+ * tab/newline/carriage return - necessarios para mensagens multi-linha
+ * (renderizadas com whitespace-pre-wrap).
+ */
+function stripControlChars(value: string): string {
+  let out = "";
+  for (const ch of value) {
+    const code = ch.codePointAt(0) ?? 0;
+    const isControl =
+      (code <= UNIT_SEPARATOR &&
+        code !== TAB &&
+        code !== LINE_FEED &&
+        code !== CARRIAGE_RETURN) ||
+      code === DELETE;
+    if (!isControl) out += ch;
+  }
+  return out;
+}
+
+/**
+ * Neutraliza conteudo textual externo:
+ * - garante string (senao usa `fallback`);
+ * - remove tags/markup HTML (`<...>`);
+ * - remove caracteres de controle preservando tab, newline e carriage return;
+ * - NAO faz entity-encode (o React escapa na renderizacao; encode aqui causaria
+ *   duplo-escape visivel).
+ */
+function sanitizeText(value: unknown, fallback = ""): string {
+  if (typeof value !== "string") return fallback;
+  return stripControlChars(value.replace(HTML_TAGS, "")).trim();
+}
+
+/** Igual a `sanitizeText`, mas preserva `null` (para campos opcionais). */
+function sanitizeTextOrNull(value: unknown): string | null {
+  if (value === null || value === undefined) return null;
+  return sanitizeText(value);
+}
+
+// ---------------------------------------------------------------------------
+// Sanitizacao estrutural (ids, datas, enums, numeros, booleans, cor, url)
+// ---------------------------------------------------------------------------
+
+/** Garante string para ids (coerca numero; demais tipos viram ""). */
+function sanitizeId(value: unknown): string {
+  if (typeof value === "string") return value;
+  if (typeof value === "number" && Number.isFinite(value)) return String(value);
+  return "";
+}
+
+/** Id opcional: string nao-vazia ou null. */
+function sanitizeIdOrNull(value: unknown): string | null {
+  return sanitizeId(value) || null;
+}
+
+/** Normaliza data para ISO 8601; entrada invalida vira null. */
+function sanitizeIsoDate(value: unknown): string | null {
+  if (typeof value !== "string" && typeof value !== "number") return null;
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? null : date.toISOString();
+}
+
+/** Coercao segura para boolean (sempre retorna boolean, nunca lanca). */
+function sanitizeBoolean(value: unknown): boolean {
+  return value === true;
+}
+
+/** Contador nao-negativo; entrada invalida vira 0. */
+function sanitizeCount(value: unknown): number {
+  const n = typeof value === "number" ? value : Number(value);
+  return Number.isFinite(n) && n >= 0 ? Math.floor(n) : 0;
+}
+
+const HEX_COLOR = /^#(?:[0-9a-fA-F]{3,4}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$/;
+
+/** Cor usada em `style`: aceita hex (#rgb/#rgba/#rrggbb/#rrggbbaa); senao fallback. */
+function sanitizeColor(value: unknown, fallback = "#6a7175"): string {
+  if (typeof value === "string" && HEX_COLOR.test(value.trim())) {
+    return value.trim();
+  }
+  return fallback;
+}
+
+/** Valida valor contra whitelist de enum; fora dela usa `fallback`. */
+function sanitizeEnum<T extends string>(
+  value: unknown,
+  allowed: readonly T[],
+  fallback: T
+): T {
+  return typeof value === "string" && (allowed as readonly string[]).includes(value)
+    ? (value as T)
+    : fallback;
+}
+
+/**
+ * Sanitiza URL externa: aceita apenas http/https, senao null.
+ * (Sem campo de URL nos DTOs atuais; disponivel para quando existirem.)
+ */
+export function sanitizeUrl(value: unknown): string | null {
+  if (typeof value !== "string") return null;
+  try {
+    const url = new URL(value.trim());
+    return url.protocol === "http:" || url.protocol === "https:"
+      ? url.toString()
+      : null;
+  } catch {
+    return null;
+  }
+}
+
+const MESSAGE_DIRECTIONS = ["in", "out"] as const;
+const MESSAGE_STATUSES = ["sent", "delivered", "read", "failed"] as const;
+const RECENT_TARGET_TYPES = ["conversation", "contact"] as const;
+const AI_SOURCES = ["openai", "stub"] as const;
+
 export function sanitizeAgent(raw: RawAgent): Agent {
   return {
-    id: raw.id,
-    name: raw.name,
-    role: raw.role,
+    id: sanitizeId(raw.id),
+    name: sanitizeText(raw.name),
+    role: sanitizeText(raw.role),
     capabilities: {
-      sendMessage: Boolean(raw.capabilities?.sendMessage),
-      aiSuggestion: Boolean(raw.capabilities?.aiSuggestion),
+      sendMessage: sanitizeBoolean(raw.capabilities?.sendMessage),
+      aiSuggestion: sanitizeBoolean(raw.capabilities?.aiSuggestion),
     },
   };
 }
 
 export function sanitizeConversation(raw: RawConversation): Conversation {
   return {
-    id: raw.id,
-    contactName: raw.contactName,
-    contactPhone: raw.contactPhone,
-    avatarColor: raw.avatarColor,
-    unread: raw.unread,
-    lastMessage: raw.lastMessage,
-    lastMessageAt: raw.lastMessageAt,
+    id: sanitizeId(raw.id),
+    contactName: sanitizeText(raw.contactName),
+    contactPhone: sanitizeText(raw.contactPhone),
+    avatarColor: sanitizeColor(raw.avatarColor),
+    unread: sanitizeCount(raw.unread),
+    lastMessage: sanitizeText(raw.lastMessage),
+    lastMessageAt: sanitizeIsoDate(raw.lastMessageAt),
   };
 }
 
@@ -54,12 +186,12 @@ export function sanitizeConversations(raw: RawConversation[]): Conversation[] {
 
 export function sanitizeContact(raw: RawContact): Contact {
   return {
-    id: raw.id,
-    name: raw.name,
-    phone: raw.phone,
-    profileName: raw.profileName,
-    createdAt: raw.createdAt,
-    updatedAt: raw.updatedAt,
+    id: sanitizeId(raw.id),
+    name: sanitizeText(raw.name),
+    phone: sanitizeText(raw.phone),
+    profileName: sanitizeTextOrNull(raw.profileName),
+    createdAt: sanitizeIsoDate(raw.createdAt),
+    updatedAt: sanitizeIsoDate(raw.updatedAt),
   };
 }
 
@@ -69,15 +201,15 @@ export function sanitizeContacts(raw: RawContact[]): Contact[] {
 
 export function sanitizeRecentSearch(raw: RawRecentSearch): RecentSearch {
   return {
-    id: raw.id,
-    targetType: raw.targetType,
-    targetId: raw.targetId,
-    conversationId: raw.conversationId,
-    label: raw.label,
-    subtitle: raw.subtitle,
-    avatarInitials: raw.avatarInitials,
-    updatedAt: raw.updatedAt,
-    canOpen: raw.canOpen,
+    id: sanitizeId(raw.id),
+    targetType: sanitizeEnum(raw.targetType, RECENT_TARGET_TYPES, "contact"),
+    targetId: sanitizeId(raw.targetId),
+    conversationId: sanitizeIdOrNull(raw.conversationId),
+    label: sanitizeText(raw.label),
+    subtitle: sanitizeText(raw.subtitle),
+    avatarInitials: sanitizeText(raw.avatarInitials),
+    updatedAt: sanitizeIsoDate(raw.updatedAt),
+    canOpen: sanitizeBoolean(raw.canOpen),
   };
 }
 
@@ -87,11 +219,11 @@ export function sanitizeRecentSearches(raw: RawRecentSearch[]): RecentSearch[] {
 
 export function sanitizeMessage(raw: RawMessage): Message {
   return {
-    id: raw.id,
-    direction: raw.direction,
-    body: raw.body,
-    status: raw.status,
-    createdAt: raw.createdAt,
+    id: sanitizeId(raw.id),
+    direction: sanitizeEnum(raw.direction, MESSAGE_DIRECTIONS, "in"),
+    body: sanitizeText(raw.body),
+    status: sanitizeEnum(raw.status, MESSAGE_STATUSES, "sent"),
+    createdAt: sanitizeIsoDate(raw.createdAt),
   };
 }
 
@@ -101,19 +233,19 @@ export function sanitizeMessages(raw: RawMessage[]): Message[] {
 
 export function sanitizeSentMessage(raw: RawSentMessage): SentMessage {
   return {
-    id: raw.id,
-    conversationId: raw.conversationId,
-    direction: raw.direction,
-    body: raw.body,
-    status: raw.status,
-    externalMessageId: raw.externalMessageId,
-    createdAt: raw.createdAt,
+    id: sanitizeId(raw.id),
+    conversationId: sanitizeId(raw.conversationId),
+    direction: sanitizeEnum(raw.direction, ["outbound"] as const, "outbound"),
+    body: sanitizeText(raw.body),
+    status: sanitizeText(raw.status),
+    externalMessageId: sanitizeIdOrNull(raw.externalMessageId),
+    createdAt: sanitizeIsoDate(raw.createdAt),
   };
 }
 
 export function sanitizeAiSuggestion(raw: RawAiSuggestion): AiSuggestion {
   return {
-    suggestion: raw.suggestion,
-    source: raw.source,
+    suggestion: sanitizeText(raw.suggestion),
+    source: sanitizeEnum(raw.source, AI_SOURCES, "stub"),
   };
 }
