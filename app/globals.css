@@ -54,9 +54,7 @@
 
 .chat-bg {
   background-color: var(--bg);
-  background-image:
-    linear-gradient(rgba(11, 20, 26, 0.9), rgba(11, 20, 26, 0.9)),
-    url("/brand/background-plan.png");
+  background-image: url("/brand/wallpaper.png");
   background-position: center;
   background-repeat: no-repeat;
   background-size: cover;

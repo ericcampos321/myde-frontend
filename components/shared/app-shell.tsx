@@ -13,7 +13,7 @@ export function AppShell({ sidebar, main, showMain = true }: AppShellProps) {
     <div className="flex h-screen overflow-hidden bg-bg">
       <aside
         className={[
-          "flex w-full shrink-0 flex-col overflow-hidden bg-sidebar sm:w-[452px] sm:min-w-[452px]",
+          "flex w-full shrink-0 flex-col overflow-hidden bg-sidebar sm:w-[526px] sm:min-w-[526px]",
           showMain ? "hidden sm:flex" : "flex",
         ].join(" ")}
       >

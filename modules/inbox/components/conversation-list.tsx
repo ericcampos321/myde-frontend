@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { useCallback, useMemo, useState } from "react";
 import { ConversationSearch } from "./conversation-search";
 import { ConversationListItem } from "./conversation-list-item";
@@ -32,27 +33,26 @@ interface ConversationListProps {
 
 export function ConversationList({ conversations, isLoading, isFetching, isError, onRetry, selectedId, onSelect }: ConversationListProps) {
   const [activeSection, setActiveSection] = useState<RailSection>("conversations");
-  const [search, setSearch] = useState("");
+  const [searchTerm, setSearchTerm] = useState("");
   const [contactSearch, setContactSearch] = useState("");
-  const [isSearchMode, setIsSearchMode] = useState(false);
+  const [isSearchFocused, setIsSearchFocused] = useState(false);
   const [activeFilter, setActiveFilter] = useState<ConversationFilter>("all");
   const { data: recentSearches = [] } = useRecentSearchesQuery();
   const saveRecentSearch = useSaveRecentSearchMutation();
   const clearRecentSearches = useClearRecentSearchesMutation();
   const filtered = useMemo(() => {
-    const bySearch = searchConversations(conversations, search);
+    const bySearch = searchConversations(conversations, searchTerm);
     switch (activeFilter) {
       case "unread":
         return bySearch.filter((conversation) => conversation.unread > 0);
       default:
         return bySearch;
     }
-  }, [conversations, search, activeFilter]);
-  const isSearching = search.trim().length > 0;
-  const shouldShowRecentSearches = isSearchMode && !isSearching && recentSearches.length > 0;
-  const shouldShowEmptyRecents = isSearchMode && !isSearching && recentSearches.length === 0;
-  const shouldShowSearchResults = isSearchMode && isSearching;
-  const shouldShowNormalList = !isSearchMode;
+  }, [conversations, searchTerm, activeFilter]);
+  const isSearching = searchTerm.trim().length > 0;
+  const shouldShowSearchPanel = isSearchFocused || isSearching;
+  const shouldShowRecentSearches = shouldShowSearchPanel && !isSearching;
+  const shouldShowArchiveRow = !isSearching;
   const totalUnreadMessages = useMemo(
     () => conversations.reduce((total, conversation) => total + Math.max(conversation.unread, 0), 0),
     [conversations]
@@ -63,8 +63,8 @@ export function ConversationList({ conversations, isLoading, isFetching, isError
   const openConversationFromSidebar = useCallback(
     (conversation: Conversation) => {
       setActiveSection("conversations");
-      setIsSearchMode(false);
-      setSearch("");
+      setIsSearchFocused(false);
+      setSearchTerm("");
       setContactSearch("");
       onSelect(conversation);
     },
@@ -72,7 +72,7 @@ export function ConversationList({ conversations, isLoading, isFetching, isError
   );
   const handleConversationSelect = useCallback(
     (conversation: Conversation) => {
-      if (search.trim()) {
+      if (searchTerm.trim()) {
         saveRecentSearch.mutate({
           targetType: "conversation",
           targetId: conversation.id,
@@ -80,7 +80,7 @@ export function ConversationList({ conversations, isLoading, isFetching, isError
       }
       openConversationFromSidebar(conversation);
     },
-    [openConversationFromSidebar, saveRecentSearch, search]
+    [openConversationFromSidebar, saveRecentSearch, searchTerm]
   );
   const handleRecentSearchOpen = useCallback(
     (item: RecentSearch) => {
@@ -115,14 +115,13 @@ export function ConversationList({ conversations, isLoading, isFetching, isError
         onBlurCapture={(event) => {
           const nextTarget = event.relatedTarget;
           if (!(nextTarget instanceof Node) || !event.currentTarget.contains(nextTarget)) {
-            setIsSearchMode(false);
-            setSearch("");
+            setIsSearchFocused(false);
           }
         }}
       >
         <div
           className={[
-            "h-[2px] shrink-0 bg-accent transition-opacity duration-300",
+            "h-[2px] shrink-0 bg-accent transition-opacity duration-650",
             isFetching && !isLoading ? "opacity-100" : "opacity-0",
           ].join(" ")}
           aria-hidden
@@ -132,13 +131,15 @@ export function ConversationList({ conversations, isLoading, isFetching, isError
           <>
             <div className="shrink-0 bg-sidebar">
               <div className="flex h-[61px] items-center justify-between bg-sidebar pl-5 pr-4">
-                <div className="flex min-w-0 items-center gap-2">
-                  <h2 className="truncate text-[19px] font-semibold leading-tight text-text">Conversas</h2>
-                  {!isLoading && !isError && conversations.length > 0 && (
-                    <span className="min-w-6 rounded-full bg-accent/10 px-2 py-0.5 text-center text-[10px] font-semibold text-accent tabular-nums">
-                      {conversations.length}
-                    </span>
-                  )}
+                <div className="flex min-w-0 items-center">
+                  <Image
+                    src="/brand/background-plan.png"
+                    alt="Myde Inbox"
+                    width={172}
+                    height={34}
+                    className="h-auto w-[172px] object-contain"
+                    priority
+                  />
                 </div>
                 <div className="flex items-center gap-1">
                   <PassiveIconButton label="Nova conversa" disabled>
@@ -152,75 +153,83 @@ export function ConversationList({ conversations, isLoading, isFetching, isError
 
               <div className="px-3 py-2">
                 <ConversationSearch
-                  value={search}
-                  onChange={setSearch}
-                  onFocus={() => setIsSearchMode(true)}
+                  value={searchTerm}
+                  onChange={setSearchTerm}
+                  onFocus={() => setIsSearchFocused(true)}
                   onEscape={() => {
-                    setIsSearchMode(false);
-                    setSearch("");
+                    setIsSearchFocused(false);
+                    setSearchTerm("");
                   }}
                 />
               </div>
 
-              {!isSearchMode && (
-                <div className="flex items-center gap-2 overflow-x-auto px-3 pt-1 pb-1.5">
-                  {CONVERSATION_FILTERS.map((filter) => (
-                    <FilterPill
-                      key={filter.id}
-                      label={filter.label}
-                      active={activeFilter === filter.id}
-                      onClick={() => setActiveFilter(filter.id)}
+              <div
+                aria-hidden={!shouldShowRecentSearches}
+                className={[
+                  "grid overflow-hidden transition-[grid-template-rows,opacity,transform,margin] duration-200 ease-out",
+                  shouldShowRecentSearches
+                    ? "grid-rows-[1fr] translate-y-0 opacity-100 mb-1"
+                    : "grid-rows-[0fr] -translate-y-1 opacity-0 mb-0",
+                ].join(" ")}
+              >
+                <div className="min-h-0">
+                  {recentSearches.length > 0 ? (
+                    <RecentSearchesPanel
+                      items={recentSearches}
+                      onOpen={handleRecentSearchOpen}
+                      onClear={() => clearRecentSearches.mutate()}
+                      isClearing={clearRecentSearches.isPending}
                     />
-                  ))}
+                  ) : (
+                    <SearchModeEmptyState message="Nenhuma pesquisa recente" compact />
+                  )}
                 </div>
-              )}
+              </div>
+
+              <div className="flex items-center gap-2 overflow-x-auto px-3 pt-1 pb-1.5">
+                {CONVERSATION_FILTERS.map((filter) => (
+                  <FilterPill
+                    key={filter.id}
+                    label={filter.label}
+                    active={activeFilter === filter.id}
+                    onClick={() => setActiveFilter(filter.id)}
+                  />
+                ))}
+              </div>
             </div>
 
-            {shouldShowRecentSearches && (
-              <RecentSearchesPanel
-                items={recentSearches}
-                onOpen={handleRecentSearchOpen}
-                onClear={() => clearRecentSearches.mutate()}
-                isClearing={clearRecentSearches.isPending}
-              />
-            )}
-
-            {shouldShowEmptyRecents && <SearchModeEmptyState message="Nenhuma pesquisa recente" />}
-
-            {shouldShowNormalList && (
+            {shouldShowArchiveRow && (
               <button
                 type="button"
-                className="flex h-[45px] w-full shrink-0 items-center gap-3 border-b border-border px-5 text-accent transition-colors hover:bg-surface-raised"
+                className="flex h-[45px] w-full shrink-0 items-center gap-3 border-b border-border px-5 text-[#8696a0] transition-colors hover:bg-surface-raised hover:text-text"
               >
                 <ArchiveIcon />
                 <span className="text-[14px] font-medium">Arquivadas</span>
               </button>
             )}
 
-            {(shouldShowNormalList || shouldShowSearchResults) && (
-              <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
-                {isLoading && <ConversationListSkeleton />}
+            <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
+              {isLoading && <ConversationListSkeleton />}
 
-                {isError && <ErrorState message="Não foi possível carregar as conversas." retry={onRetry} />}
+              {isError && <ErrorState message="Não foi possível carregar as conversas." retry={onRetry} />}
 
-                {!isLoading && !isError && filtered.length === 0 && (
-                  <ConversationListEmptyState hasSearch={isSearching} activeFilter={activeFilter} />
-                )}
+              {!isLoading && !isError && filtered.length === 0 && (
+                <ConversationListEmptyState hasSearch={isSearching} activeFilter={activeFilter} />
+              )}
 
-                {!isLoading && !isError && (
-                  <div className="flex flex-col">
-                    {filtered.map((c) => (
-                      <ConversationListItem
-                        key={c.id}
-                        conversation={c}
-                        selected={c.id === selectedId}
-                        onClick={() => handleConversationSelect(c)}
-                      />
-                    ))}
-                  </div>
-                )}
-              </div>
-            )}
+              {!isLoading && !isError && (
+                <div className="flex flex-col">
+                  {filtered.map((c) => (
+                    <ConversationListItem
+                      key={c.id}
+                      conversation={c}
+                      selected={c.id === selectedId}
+                      onClick={() => handleConversationSelect(c)}
+                    />
+                  ))}
+                </div>
+              )}
+            </div>
           </>
         ) : (
           <ContactList
@@ -276,9 +285,9 @@ function resolveEmptyState(hasSearch: boolean, activeFilter: ConversationFilter)
   }
 }
 
-function SearchModeEmptyState({ message }: { message: string }) {
+function SearchModeEmptyState({ message, compact = false }: { message: string; compact?: boolean }) {
   return (
-    <div className="px-5 py-8 text-center">
+    <div className={compact ? "px-5 pb-2 pt-1 text-center" : "px-5 py-8 text-center"}>
       <p className="text-[13px] font-medium text-text-muted">{message}</p>
     </div>
   );
@@ -327,7 +336,7 @@ function InboxRail({
 }) {
   return (
     <nav
-      className="hidden h-full w-[72px] min-w-[72px] shrink-0 flex-col items-center border-r border-border bg-sidebar-rail shadow-[1px_0_0_0_var(--divider-strong)] py-0 sm:flex"
+      className="hidden h-full w-[65px] min-w-[65px] shrink-0 flex-col items-center border-r border-border bg-sidebar-rail shadow-[1px_0_0_0_var(--divider-strong)] py-0 sm:flex"
       aria-label="Atalhos visuais do inbox"
     >
       <div className="my-[10px] flex w-full justify-center px-2">
@@ -378,7 +387,7 @@ function RailButton({
       aria-label={label}
       onClick={onClick}
       className={[
-        "relative flex h-[52px] w-[72px] items-center justify-center transition-colors duration-150",
+        "relative flex h-[52px] w-[72px] cursor-pointer items-center justify-center transition-colors duration-150",
         active ? "text-text" : "text-text-muted hover:text-text",
       ].join(" ")}
     >
@@ -387,8 +396,14 @@ function RailButton({
           {badgeCount > 99 ? "99+" : badgeCount}
         </span>
       )}
-      {active && <span className="absolute left-0 top-1/2 h-8 w-[3px] -translate-y-1/2 rounded-r-[3px] bg-accent" />}
-      {children}
+      <span
+        className={[
+          "flex h-10 w-10 items-center justify-center rounded-full transition-colors duration-150",
+          active ? "bg-white/10 text-text" : "bg-transparent text-inherit hover:bg-white/8",
+        ].join(" ")}
+      >
+        {children}
+      </span>
     </button>
   );
 }
