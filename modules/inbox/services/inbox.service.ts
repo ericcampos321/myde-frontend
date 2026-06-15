@@ -7,7 +7,7 @@ import type {
   RawAiSuggestion,
   RawContact,
   RawConversation,
-  RawMessage,
+  RawMessagePage,
   RawRecentSearch,
   RawSentMessage,
 } from "@/modules/inbox/services/inbox.raw.types";
@@ -68,14 +68,20 @@ export function clearRecentSearches(ctx: RequestContext = {}): Promise<void> {
   });
 }
 
-export function getMessages(
+export function getMessagesPage(
   conversationId: string,
+  params: { limit?: string; before?: string } = {},
   ctx: RequestContext = {}
-): Promise<RawMessage[]> {
-  return backendClient.get<RawMessage[]>(
-    inboxEndpoints.conversationMessages(conversationId),
-    { headers: ctx.headers }
-  );
+): Promise<RawMessagePage> {
+  const query = new URLSearchParams();
+  if (params.limit) query.set("limit", params.limit);
+  if (params.before) query.set("before", params.before);
+  const qs = query.toString();
+  const path = qs
+    ? `${inboxEndpoints.conversationMessages(conversationId)}?${qs}`
+    : inboxEndpoints.conversationMessages(conversationId);
+
+  return backendClient.get<RawMessagePage>(path, { headers: ctx.headers });
 }
 
 export function markConversationAsRead(

@@ -6,15 +6,15 @@
   --surface-raised: #202c33;
   --surface-active: #2a3942;
   --border: #222d34;
-  --accent: #00a884;
-  --accent-hover: #06cf9c;
+  --accent: #4682B4;
+  --accent-hover: #4682B4;
   --sidebar: var(--surface);
   --sidebar-rail: #1d1f1f;
   --chat-header: var(--surface);
   --chat-footer: var(--surface-raised);
   --chat-input: var(--surface-active);
   --bubble-in: #202c33;
-  --bubble-out: #005c4b;
+  --bubble-out: #1E90FF;
   --accent-gradient: linear-gradient(160deg, var(--accent-hover), var(--accent));
   --accent-avatar-gradient: linear-gradient(145deg, var(--accent), #045c4a);
   --accent-shadow: rgba(0, 168, 132, 0.24);

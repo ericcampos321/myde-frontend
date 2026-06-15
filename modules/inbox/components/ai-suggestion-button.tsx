@@ -45,30 +45,33 @@ export function AiSuggestionButton({
         type="button"
         onClick={handleClick}
         disabled={disabled || isPending}
-        aria-label="Sugerir resposta com IA"
+        aria-label="Gerar resposta com IA"
         aria-busy={isPending}
-        title="Sugerir resposta com IA"
+        title="Gerar resposta com IA"
         className={[
           "flex items-center justify-center rounded-full border-0 outline-none text-text-muted transition-colors enabled:hover:bg-text/8 enabled:hover:text-text focus:outline-none focus:ring-0 disabled:cursor-default disabled:opacity-60",
           compact ? "h-9 w-9" : "h-10 w-10",
           className ?? "",
         ].join(" ")}
       >
-        {isPending ? <SpinnerIcon /> : <SparkleIcon />}
+        {isPending ? <SpinnerIcon /> : <AiGenerateIcon />}
       </button>
     </div>
   );
 }
 
-function SparkleIcon() {
+function AiGenerateIcon() {
   return (
     <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden>
       <path
-        d="M12 2l2.4 7.4H22l-6.2 4.5 2.4 7.4L12 17l-6.2 4.3 2.4-7.4L2 9.4h7.6L12 2z"
+        d="M6 17.5 17.5 6"
         stroke="currentColor"
-        strokeWidth="1.5"
+        strokeWidth="1.8"
+        strokeLinecap="round"
         strokeLinejoin="round"
       />
+      <path d="M14 6h3.5v3.5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="m5.5 12.5 1-2.5 2.5-1-2.5-1-1-2.5-1 2.5-2.5 1 2.5 1 1 2.5Z" fill="currentColor" />
     </svg>
   );
 }

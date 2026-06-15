@@ -26,6 +26,8 @@ export interface RawConversation extends WithExtra {
   avatarColor: string;
   unread: number;
   lastMessage: string;
+  lastMessageDirection?: "inbound" | "outbound" | null;
+  lastMessageStatus?: "pending" | "sent" | "delivered" | "read" | "failed" | null;
   lastMessageAt: string;
 }
 
@@ -56,6 +58,12 @@ export interface RawMessage extends WithExtra {
   body: string;
   status: "sent" | "delivered" | "read" | "failed";
   createdAt: string;
+}
+
+export interface RawMessagePage extends WithExtra {
+  items: RawMessage[];
+  nextCursor: string | null;
+  hasMore: boolean;
 }
 
 export interface RawSentMessage extends WithExtra {

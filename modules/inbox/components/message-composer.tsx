@@ -107,9 +107,10 @@ export function MessageComposer({
   const canSuggest = me?.capabilities.aiSuggestion ?? false;
   const canSend = me?.capabilities.sendMessage ?? false;
   const isSending = messageState === "sending";
+  const hasText = text.trim().length > 0;
 
   return (
-    <div className="shrink-0 border-t border-border bg-bg">
+    <div className="shrink-0 bg-transparent pb-2 pt-1">
       {messageState === "error" && (
         <p className="px-4 pt-1.5 text-[11px] text-danger" role="alert">
           {errorMessage || "Erro ao enviar mensagem."}
@@ -121,12 +122,12 @@ export function MessageComposer({
         </p>
       )}
 
-      <div className="flex h-[62px] items-center gap-1.5 px-3.5">
+      <div className="flex min-h-[62px] items-end gap-1.5 px-3.5">
         <FooterIconButton label="Anexar" disabled>
           <PlusIcon />
         </FooterIconButton>
 
-        <div className="flex min-w-0 flex-1 items-center gap-1 rounded-[22px] bg-chat-footer px-2">
+        <div className="flex min-w-0 flex-1 items-end gap-1 rounded-[22px] bg-chat-footer px-2 py-1.5">
           <FooterIconButton label="Emoji" disabled compact>
             <EmojiIcon />
           </FooterIconButton>
@@ -159,20 +160,16 @@ export function MessageComposer({
               />
             )}
 
-            {text.trim() ? (
+            {hasText && (
               <button
                 type="button"
                 onClick={() => void handleSend()}
                 disabled={!canSend || isSending}
                 aria-label="Enviar mensagem"
-                className="flex h-9 w-9 items-center justify-center rounded-full border-0 outline-none text-text-muted transition-colors enabled:hover:bg-text/8 enabled:hover:text-text focus:outline-none focus:ring-0 disabled:cursor-default disabled:opacity-70"
+                className="flex h-9 w-9 items-center justify-center rounded-full border-0 bg-accent text-[#0b141a] outline-none transition-colors hover:bg-accent-hover focus:outline-none focus:ring-0 disabled:cursor-default disabled:opacity-70"
               >
                 {isSending ? <SpinnerIcon /> : <SendIcon />}
               </button>
-            ) : (
-              <FooterIconButton label="Gravar áudio" disabled compact>
-                <MicIcon />
-              </FooterIconButton>
             )}
           </div>
         </div>
@@ -276,15 +273,6 @@ function SendIcon() {
     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden>
       <path d="M22 2L11 13" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
       <path d="M22 2L15 22L11 13L2 9L22 2Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  );
-}
-
-function MicIcon() {
-  return (
-    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden>
-      <rect x="9" y="3" width="6" height="11" rx="3" stroke="currentColor" strokeWidth="1.8" />
-      <path d="M5 11a7 7 0 0 0 14 0M12 18v3" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
     </svg>
   );
 }

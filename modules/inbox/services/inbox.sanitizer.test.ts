@@ -5,6 +5,7 @@ import {
   sanitizeContact,
   sanitizeConversation,
   sanitizeMessage,
+  sanitizeMessagePage,
   sanitizeRecentSearch,
   sanitizeUrl,
 } from "@/modules/inbox/services/inbox.sanitizer";
@@ -14,6 +15,7 @@ import type {
   RawContact,
   RawConversation,
   RawMessage,
+  RawMessagePage,
   RawRecentSearch,
 } from "@/modules/inbox/services/inbox.raw.types";
 
@@ -295,5 +297,61 @@ describe("sanitizeUrl", () => {
     expect(sanitizeUrl("ftp://x/y")).toBe(null);
     expect(sanitizeUrl("not a url")).toBe(null);
     expect(sanitizeUrl(123)).toBe(null);
+  });
+});
+
+describe("sanitizeMessagePage", () => {
+  it("sanitiza items e preserva nextCursor/hasMore", () => {
+    const raw = {
+      items: [
+        {
+          id: "m1",
+          direction: "in",
+          body: "<script>x</script>Oi",
+          status: "sent",
+          createdAt: "2026-06-14T01:02:23.000Z",
+          secret: "nao-vaza",
+        },
+      ],
+      nextCursor: "Y3Vyc29y",
+      hasMore: true,
+      extra: "descartar",
+    } as unknown as RawMessagePage;
+
+    const page = sanitizeMessagePage(raw);
+
+    expect(page).toEqual({
+      items: [
+        {
+          id: "m1",
+          direction: "in",
+          body: "xOi",
+          status: "sent",
+          createdAt: "2026-06-14T01:02:23.000Z",
+        },
+      ],
+      nextCursor: "Y3Vyc29y",
+      hasMore: true,
+    });
+    expect(page.items[0]).not.toHaveProperty("secret");
+  });
+
+  it("nextCursor não-string vira null; hasMore coage para boolean; items ausente vira []", () => {
+    const page = sanitizeMessagePage({
+      nextCursor: 123,
+      hasMore: "yes",
+    } as unknown as RawMessagePage);
+
+    expect(page.items).toEqual([]);
+    expect(page.nextCursor).toBe(null);
+    expect(page.hasMore).toBe(true);
+
+    expect(
+      sanitizeMessagePage({
+        items: [],
+        nextCursor: null,
+        hasMore: false,
+      } as RawMessagePage).hasMore
+    ).toBe(false);
   });
 });

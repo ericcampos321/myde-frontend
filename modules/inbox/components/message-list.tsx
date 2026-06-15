@@ -1,10 +1,14 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, type ReactNode } from "react";
 import { MessageBubble } from "./message-bubble";
+import { LoadMoreButton } from "./load-more-button";
+import { DateSeparator } from "./date-separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ErrorState } from "@/components/ui/error-state";
 import { EmptyState } from "@/components/ui/empty-state";
+import { useScrollPreservation } from "@/modules/inbox/hooks/use-scroll-preservation";
+import { groupMessagesByDay } from "@/modules/inbox/utils/group-messages-by-day";
 import type { Message } from "@/modules/inbox/types/inbox.types";
 
 interface MessageListProps {
@@ -12,26 +16,76 @@ interface MessageListProps {
   isLoading: boolean;
   isError: boolean;
   onRetry: () => void;
+  hasMore: boolean;
+  isFetchingMore: boolean;
+  onLoadMore: () => void;
 }
 
 const messageListSurfaceClassName =
-  "chat-bg relative isolate flex-1 overflow-y-auto px-4 py-2 sm:px-[8%]";
+  "relative isolate flex-1 overflow-y-auto px-4 py-2 sm:px-[8%]";
 
 const messageColumnClassName = "flex w-full flex-col";
 
-export function MessageList({ messages, isLoading, isError, onRetry }: MessageListProps) {
-  const bottomRef = useRef<HTMLDivElement>(null);
-  const isMounted = useRef(false);
+// Distância do fim (px) para considerar o usuário "perto do fim" e autoscrollar.
+const NEAR_BOTTOM_THRESHOLD = 80;
 
-  useEffect(() => {
-    if (!bottomRef.current) return;
-    // Primeira renderização com dados: posiciona sem animação.
-    // Mensagens subsequentes (novas chegando): scroll suave.
-    bottomRef.current.scrollIntoView({
-      behavior: isMounted.current ? "smooth" : "instant",
-    });
-    isMounted.current = true;
+export function MessageList({
+  messages,
+  isLoading,
+  isError,
+  onRetry,
+  hasMore,
+  isFetchingMore,
+  onLoadMore,
+}: MessageListProps) {
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const bottomRef = useRef<HTMLDivElement>(null);
+  const hasRenderedRef = useRef(false);
+  const nearBottomRef = useRef(true);
+  // true entre o clique em "carregar mais" e a chegada das mensagens antigas.
+  const prependingRef = useRef(false);
+
+  const capture = useScrollPreservation(scrollRef, messages.length);
+  const dayGroups = useMemo(() => groupMessagesByDay(messages), [messages]);
+
+  function handleLoadMore() {
+    capture();
+    prependingRef.current = true;
+    onLoadMore();
+  }
+
+  function handleScroll() {
+    const el = scrollRef.current;
+    if (!el) return;
+    nearBottomRef.current =
+      el.scrollHeight - el.scrollTop - el.clientHeight < NEAR_BOTTOM_THRESHOLD;
+  }
+
+  // Autoscroll: primeira renderização → fundo (instant). Mensagem nova no fim →
+  // suave, só se o usuário já estava perto do fim. Prepend de antigas → não mexe
+  // (a preservação de scroll cuida disso).
+  useLayoutEffect(() => {
+    if (prependingRef.current) {
+      prependingRef.current = false;
+      return;
+    }
+    if (messages.length === 0) return;
+
+    if (!hasRenderedRef.current) {
+      bottomRef.current?.scrollIntoView({ behavior: "instant" });
+      hasRenderedRef.current = true;
+      return;
+    }
+
+    if (nearBottomRef.current) {
+      bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+    }
   }, [messages.length]);
+
+  // Mantém o flag de "perto do fim" coerente após o primeiro paint.
+  useEffect(() => {
+    handleScroll();
+  }, []);
 
   if (isLoading) return <MessageListSkeleton />;
 
@@ -56,22 +110,43 @@ export function MessageList({ messages, isLoading, isError, onRetry }: MessageLi
 
   return (
     <div
+      ref={scrollRef}
+      onScroll={handleScroll}
       className={messageListSurfaceClassName}
       role="log"
       aria-live="polite"
     >
-        <div className={`${messageColumnClassName} gap-[2px]`}>
-          {messages.map((msg, index) => (
-            <MessageBubble
-              key={msg.id}
-            message={msg}
-            groupStart={index > 0 && messages[index - 1].direction !== msg.direction}
-          />
-        ))}
+      <LoadMoreButton
+        hasMore={hasMore}
+        isFetching={isFetchingMore}
+        onLoadMore={handleLoadMore}
+      />
+
+      <div className={`${messageColumnClassName} gap-[2px]`}>
+        {renderDayGroups(dayGroups)}
         <div ref={bottomRef} />
       </div>
     </div>
   );
+}
+
+function renderDayGroups(
+  groups: ReturnType<typeof groupMessagesByDay>
+): ReactNode {
+  // groupStart (cauda da bolha) acompanha a troca de direção ao longo da lista
+  // inteira, independente do dia.
+  let prevDirection: Message["direction"] | null = null;
+
+  return groups.map((group) => (
+    <div key={`${group.dayKey}-${group.messages[0]!.id}`}>
+      <DateSeparator label={group.label} />
+      {group.messages.map((msg) => {
+        const groupStart = prevDirection !== null && prevDirection !== msg.direction;
+        prevDirection = msg.direction;
+        return <MessageBubble key={msg.id} message={msg} groupStart={groupStart} />;
+      })}
+    </div>
+  ));
 }
 
 function MessageListSkeleton() {

@@ -5,6 +5,8 @@ export interface Conversation {
   avatarColor: string;
   unread: number;
   lastMessage: string;
+  lastMessageDirection: "inbound" | "outbound" | null;
+  lastMessageStatus: "pending" | "sent" | "delivered" | "read" | "failed" | null;
   lastMessageAt: string | null;
 }
 
@@ -42,6 +44,13 @@ export interface Message {
   body: string;
   status: MessageStatus;
   createdAt: string | null;
+}
+
+/** Página de mensagens (cursor). `items` em ordem cronológica ASC. */
+export interface MessagePage {
+  items: Message[];
+  nextCursor: string | null;
+  hasMore: boolean;
 }
 
 export interface SentMessage {

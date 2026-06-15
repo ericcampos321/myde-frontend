@@ -1,6 +1,7 @@
 "use client";
 
 import { useConversationMessagesQuery } from "@/modules/inbox/hooks/use-conversation-messages-query";
+import { flattenMessagePages } from "@/modules/inbox/utils/flatten-message-pages";
 import { MessageList } from "./message-list";
 import { MessageComposer } from "./message-composer";
 import { Avatar } from "@/components/ui/avatar";
@@ -15,7 +16,16 @@ interface ChatPanelProps {
 }
 
 export function ChatPanel({ conversationId, conversation, onBack }: ChatPanelProps) {
-  const { data: messages = [], isLoading, isError, refetch } = useConversationMessagesQuery(conversationId);
+  const {
+    data,
+    isLoading,
+    isError,
+    refetch,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+  } = useConversationMessagesQuery(conversationId);
+  const messages = flattenMessagePages(data?.pages);
   const subtitle = conversation
     ? conversation.unread > 0
       ? `${conversation.unread} mensagem${conversation.unread > 1 ? "s" : ""} não lida${conversation.unread > 1 ? "s" : ""}`
@@ -23,7 +33,7 @@ export function ChatPanel({ conversationId, conversation, onBack }: ChatPanelPro
     : "";
 
   return (
-    <div className="flex h-full flex-col bg-bg">
+    <div className="chat-bg flex h-full flex-col">
       <div className="flex h-[60px] shrink-0 items-center gap-3 border-b border-border bg-chat-header px-4">
         <Button
           variant="ghost"
@@ -76,6 +86,9 @@ export function ChatPanel({ conversationId, conversation, onBack }: ChatPanelPro
         isLoading={isLoading}
         isError={isError}
         onRetry={() => refetch()}
+        hasMore={hasNextPage}
+        isFetchingMore={isFetchingNextPage}
+        onLoadMore={() => fetchNextPage()}
       />
 
       <MessageComposer

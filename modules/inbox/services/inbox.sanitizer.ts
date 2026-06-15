@@ -19,6 +19,7 @@ import type {
   RawContact,
   RawConversation,
   RawMessage,
+  RawMessagePage,
   RawRecentSearch,
   RawSentMessage,
 } from "@/modules/inbox/services/inbox.raw.types";
@@ -30,6 +31,7 @@ import type {
   Contact,
   Conversation,
   Message,
+  MessagePage,
   RecentSearch,
   SentMessage,
 } from "@/modules/inbox/types/inbox.types";
@@ -142,6 +144,8 @@ export function sanitizeUrl(value: unknown): string | null {
 
 const MESSAGE_DIRECTIONS = ["in", "out"] as const;
 const MESSAGE_STATUSES = ["sent", "delivered", "read", "failed"] as const;
+const CONVERSATION_PREVIEW_DIRECTIONS = ["inbound", "outbound"] as const;
+const CONVERSATION_PREVIEW_STATUSES = ["pending", "sent", "delivered", "read", "failed"] as const;
 const RECENT_TARGET_TYPES = ["conversation", "contact"] as const;
 const AI_SOURCES = ["openai", "stub"] as const;
 const AI_RISK_LEVELS = ["low", "medium", "high"] as const;
@@ -175,6 +179,14 @@ export function sanitizeConversation(raw: RawConversation): Conversation {
     avatarColor: sanitizeColor(raw.avatarColor),
     unread: sanitizeCount(raw.unread),
     lastMessage: sanitizeText(raw.lastMessage),
+    lastMessageDirection:
+      raw.lastMessageDirection == null
+        ? null
+        : sanitizeEnum(raw.lastMessageDirection, CONVERSATION_PREVIEW_DIRECTIONS, "inbound"),
+    lastMessageStatus:
+      raw.lastMessageStatus == null
+        ? null
+        : sanitizeEnum(raw.lastMessageStatus, CONVERSATION_PREVIEW_STATUSES, "sent"),
     lastMessageAt: sanitizeIsoDate(raw.lastMessageAt),
   };
 }
@@ -228,6 +240,14 @@ export function sanitizeMessage(raw: RawMessage): Message {
 
 export function sanitizeMessages(raw: RawMessage[]): Message[] {
   return raw.map(sanitizeMessage);
+}
+
+export function sanitizeMessagePage(raw: RawMessagePage): MessagePage {
+  return {
+    items: sanitizeMessages(Array.isArray(raw.items) ? raw.items : []),
+    nextCursor: typeof raw.nextCursor === "string" ? raw.nextCursor : null,
+    hasMore: Boolean(raw.hasMore),
+  };
 }
 
 export function sanitizeSentMessage(raw: RawSentMessage): SentMessage {
