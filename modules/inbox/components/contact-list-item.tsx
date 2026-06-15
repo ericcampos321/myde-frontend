@@ -29,7 +29,9 @@ export function ContactListItem({
       title={!canOpenConversation ? "Contato sem conversa ainda" : undefined}
       className={cn(
         "group block w-full px-3 py-1 text-left transition-colors duration-150 focus-visible:outline-none",
-        !canOpenConversation && "cursor-default bg-transparent text-text-muted/90 opacity-75"
+        canOpenConversation
+          ? "cursor-pointer"
+          : "cursor-default bg-transparent text-text-muted/90 opacity-75"
       )}
     >
       <div

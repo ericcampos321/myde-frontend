@@ -8,13 +8,13 @@ const SEARCH_LIMIT = "20";
 /**
  * Busca paginada de mensagens dentro da conversa.
  *
- * `term` deve vir já com debounce. `enabled` só quando há conversa e o termo tem
- * ao menos 2 caracteres (`shouldSearchMessages`). Resultados em DESC (match mais
- * recente primeiro); `fetchNextPage` traz resultados mais antigos.
+ * `term` deve vir já com debounce. A busca habilita com termo válido ou data
+ * selecionada. Resultados em DESC; `fetchNextPage` traz resultados mais antigos.
  */
 export function useMessageSearchQuery(
   conversationId: string | null,
-  term: string
+  term: string,
+  selectedDate: string | null
 ) {
   const normalizedTerm = term.trim();
 
@@ -23,6 +23,7 @@ export function useMessageSearchQuery(
       "conversation-message-search",
       conversationId,
       normalizedTerm.toLowerCase(),
+      selectedDate,
     ],
     initialPageParam: null as string | null,
     queryFn: ({ pageParam }) =>
@@ -31,6 +32,7 @@ export function useMessageSearchQuery(
         {
           query: {
             q: normalizedTerm,
+            date: selectedDate ?? undefined,
             limit: SEARCH_LIMIT,
             cursor: pageParam ?? undefined,
           },
@@ -38,7 +40,7 @@ export function useMessageSearchQuery(
       ),
     getNextPageParam: (lastPage) =>
       lastPage.hasMore ? lastPage.nextCursor : undefined,
-    enabled: !!conversationId && shouldSearchMessages(term),
+    enabled: !!conversationId && (shouldSearchMessages(term) || !!selectedDate),
     staleTime: 10_000,
   });
 }

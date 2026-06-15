@@ -15,6 +15,7 @@ export async function GET(request: Request, { params }: RouteContext) {
       conversationId,
       {
         q: searchParams.get("q") ?? "",
+        date: searchParams.get("date") ?? undefined,
         limit: searchParams.get("limit") ?? undefined,
         cursor: searchParams.get("cursor") ?? undefined,
       },

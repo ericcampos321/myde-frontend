@@ -24,7 +24,7 @@ export function LoadMoreButton({
         type="button"
         onClick={onLoadMore}
         disabled={isFetching}
-        className="flex items-center gap-2 rounded-full bg-black/30 px-3 py-1 text-[12px] text-text-muted backdrop-blur-sm transition-colors hover:bg-black/40 hover:text-text disabled:cursor-default"
+        className="flex cursor-pointer items-center gap-2 rounded-full bg-black/30 px-3 py-1 text-[12px] text-text-muted backdrop-blur-sm transition-colors hover:bg-black/40 hover:text-text disabled:cursor-default"
       >
         {isFetching ? (
           <>

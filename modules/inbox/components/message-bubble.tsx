@@ -4,10 +4,15 @@ import type { Message } from "@/modules/inbox/types/inbox.types";
 
 interface MessageBubbleProps {
   message: Message;
-  groupStart?: boolean;
+  isFirstInSequence: boolean;
+  isLastInSequence: boolean;
 }
 
-export function MessageBubble({ message, groupStart = false }: MessageBubbleProps) {
+export function MessageBubble({
+  message,
+  isFirstInSequence,
+  isLastInSequence,
+}: MessageBubbleProps) {
   const isOut = message.direction === "out";
   const isOptimistic = message.id.startsWith("optimistic-");
 
@@ -20,24 +25,24 @@ export function MessageBubble({ message, groupStart = false }: MessageBubbleProp
         })
       : "";
 
-  const isFailed = isOut && message.status === "failed";
-
   return (
     <div
       data-message-id={message.id}
       className={cn(
-        "flex my-[1px]",
+        "flex",
         isOut ? "justify-end" : "justify-start",
-        groupStart && "mt-1.5"
+        isFirstInSequence ? "mt-2" : "mt-[2px]",
+        isLastInSequence && "mb-1"
       )}
     >
       <div
         className={cn(
           "relative w-fit max-w-[85%] overflow-visible rounded-lg pb-[20px] pl-[9px] pr-[7px] pt-[6px] shadow-[0_1px_0.5px_rgba(0,0,0,0.13)] sm:max-w-[65%]",
-          isOut
-            ? "bubble-sent rounded-tr-[2px] bg-bubble-out text-text"
-            : "bubble-recv rounded-tl-[2px] bg-bubble-in text-text",
-          isFailed && "ring-1 ring-danger/40",
+          isOut ? "bg-bubble-out text-text" : "bg-bubble-in text-text",
+          isFirstInSequence &&
+            (isOut
+              ? "bubble-sent rounded-tr-[2px]"
+              : "bubble-recv rounded-tl-[2px]"),
           isOptimistic && "opacity-60"
         )}
       >

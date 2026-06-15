@@ -87,10 +87,12 @@ export function getMessagesPage(
 
 export function getMessageSearchPage(
   conversationId: string,
-  params: { q: string; limit?: string; cursor?: string },
+  params: { q?: string; date?: string; limit?: string; cursor?: string },
   ctx: RequestContext = {}
 ): Promise<RawMessageSearchPage> {
-  const query = new URLSearchParams({ q: params.q });
+  const query = new URLSearchParams();
+  if (params.q) query.set("q", params.q);
+  if (params.date) query.set("date", params.date);
   if (params.limit) query.set("limit", params.limit);
   if (params.cursor) query.set("cursor", params.cursor);
 

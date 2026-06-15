@@ -36,8 +36,9 @@ export function ChatPanel({ conversationId, conversation, onBack }: ChatPanelPro
     : "";
 
   return (
-    <div className="chat-bg relative flex h-full flex-col">
-      <div className="flex h-[60px] shrink-0 items-center gap-3 border-b border-border bg-chat-header px-4">
+    <div className="relative flex h-full w-full min-w-0 overflow-hidden">
+      <section className="chat-bg flex min-w-0 flex-1 flex-col">
+      <div className="flex h-[60px] shrink-0 items-center gap-3 bg-chat-header px-4">
         <Button
           variant="ghost"
           size="sm"
@@ -70,9 +71,6 @@ export function ChatPanel({ conversationId, conversation, onBack }: ChatPanelPro
               >
                 <HeaderSearchIcon />
               </HeaderIconButton>
-              <HeaderIconButton label="Mais opções">
-                <HeaderMenuIcon />
-              </HeaderIconButton>
             </div>
           </>
         ) : (
@@ -103,10 +101,12 @@ export function ChatPanel({ conversationId, conversation, onBack }: ChatPanelPro
           await refetch();
         }}
       />
+      </section>
 
       {searchOpen && (
         <MessageSearchPanel
           conversationId={conversationId}
+          contactName={conversation?.contactName ?? "esta conversa"}
           onClose={() => setSearchOpen(false)}
         />
       )}
@@ -150,16 +150,6 @@ function HeaderSearchIcon() {
     <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden>
       <circle cx="11" cy="11" r="7" stroke="currentColor" strokeWidth="1.8" />
       <path d="m20 20-3.5-3.5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
-    </svg>
-  );
-}
-
-function HeaderMenuIcon() {
-  return (
-    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden>
-      <circle cx="12" cy="5" r="1.5" fill="currentColor" />
-      <circle cx="12" cy="12" r="1.5" fill="currentColor" />
-      <circle cx="12" cy="19" r="1.5" fill="currentColor" />
     </svg>
   );
 }

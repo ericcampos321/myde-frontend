@@ -141,14 +141,6 @@ export function ConversationList({ conversations, isLoading, isFetching, isError
                     priority
                   />
                 </div>
-                <div className="flex items-center gap-1">
-                  <PassiveIconButton label="Nova conversa" disabled>
-                    <NewConversationIcon />
-                  </PassiveIconButton>
-                  <PassiveIconButton label="Menu" disabled>
-                    <MoreIcon />
-                  </PassiveIconButton>
-                </div>
               </div>
 
               <div className="px-3 py-2">
@@ -316,7 +308,7 @@ function FilterPill({ label, active, onClick }: { label: string; active: boolean
       onClick={onClick}
       aria-pressed={active}
       className={[
-        "flex shrink-0 items-center rounded-2xl px-3 py-[5px] text-[13px] font-medium transition-colors",
+        "flex shrink-0 cursor-pointer items-center rounded-2xl px-3 py-[5px] text-[13px] font-medium transition-colors",
         active ? "bg-accent/15 text-accent" : "text-text-muted hover:bg-surface-raised hover:text-text",
       ].join(" ")}
     >
@@ -336,15 +328,9 @@ function InboxRail({
 }) {
   return (
     <nav
-      className="hidden h-full w-[65px] min-w-[65px] shrink-0 flex-col items-center border-r border-border bg-sidebar-rail shadow-[1px_0_0_0_var(--divider-strong)] py-0 sm:flex"
+      className="hidden h-full w-12 min-w-14 shrink-0 flex-col items-center border-r border-border bg-sidebar-rail shadow-[1px_0_0_0_var(--divider-strong)] py-0 sm:flex"
       aria-label="Atalhos visuais do inbox"
     >
-      <div className="my-[10px] flex w-full justify-center px-2">
-        <TopRailButton label="Myde Inbox">
-          <InboxIcon />
-        </TopRailButton>
-      </div>
-
       <div className="flex w-full flex-1 flex-col items-center">
         <RailButton
           label="Conversas"
@@ -387,18 +373,18 @@ function RailButton({
       aria-label={label}
       onClick={onClick}
       className={[
-        "relative flex h-[52px] w-[72px] cursor-pointer items-center justify-center transition-colors duration-150",
+        "relative flex h-12 w-14 cursor-pointer items-center justify-center transition-colors duration-150",
         active ? "text-text" : "text-text-muted hover:text-text",
       ].join(" ")}
     >
       {badgeCount > 0 && (
-        <span className="absolute right-[14px] top-[7px] inline-flex h-[9px] w-[9px] items-center justify-center rounded-full bg-accent text-[0px] leading-none text-transparent">
+        <span className="absolute right-[7px] top-[5px] inline-flex h-[8px] w-[8px] items-center justify-center rounded-full bg-accent text-[0px] leading-none text-transparent">
           {badgeCount > 99 ? "99+" : badgeCount}
         </span>
       )}
       <span
         className={[
-          "flex h-10 w-10 items-center justify-center rounded-full transition-colors duration-150",
+          "flex h-[34px] w-[34px] items-center justify-center rounded-full transition-colors duration-150",
           active ? "bg-white/10 text-text" : "bg-transparent text-inherit hover:bg-white/8",
         ].join(" ")}
       >
@@ -413,25 +399,7 @@ function TopRailButton({ label, children }: { label: string; children: React.Rea
     <button
       type="button"
       aria-label={label}
-      className="flex h-10 w-10 items-center justify-center rounded-full bg-[#374045] text-text-muted transition-colors hover:text-text"
-    >
-      {children}
-    </button>
-  );
-}
-
-function PassiveIconButton({ label, disabled = false, children }: { label: string; disabled?: boolean; children: React.ReactNode }) {
-  return (
-    <button
-      type="button"
-      aria-label={label}
-      aria-disabled={disabled ? "true" : undefined}
-      disabled={disabled}
-      title={disabled ? `${label} ainda não disponível` : undefined}
-      className={[
-        "flex h-8 w-8 items-center justify-center rounded-full transition-colors",
-        disabled ? "cursor-default text-text-muted/45 opacity-70" : "text-text-muted hover:bg-white/10 hover:text-text",
-      ].join(" ")}
+      className="flex h-[34px] w-[34px] items-center justify-center rounded-full bg-[#374045] text-text-muted transition-colors hover:text-text"
     >
       {children}
     </button>
@@ -477,24 +445,6 @@ function ContactsIcon() {
         strokeWidth="1.8"
         strokeLinecap="round"
       />
-    </IconBase>
-  );
-}
-
-function NewConversationIcon() {
-  return (
-    <IconBase size={22}>
-      <path d="M5 5h14v11H8l-3 3zM12 8v5M9.5 10.5h5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
-    </IconBase>
-  );
-}
-
-function MoreIcon() {
-  return (
-    <IconBase size={22}>
-      <circle cx="12" cy="5" r="1.4" fill="currentColor" />
-      <circle cx="12" cy="12" r="1.4" fill="currentColor" />
-      <circle cx="12" cy="19" r="1.4" fill="currentColor" />
     </IconBase>
   );
 }

@@ -22,7 +22,7 @@ export function RecentSearchesPanel({ items, onOpen, onClear, isClearing }: Rece
           aria-label="Limpar todas as pesquisas recentes"
           onClick={onClear}
           disabled={isClearing}
-          className="rounded-full px-3 py-1.5 text-[11px] font-medium text-accent transition-colors hover:bg-accent/10 disabled:cursor-default disabled:opacity-50"
+          className="cursor-pointer rounded-full px-3 py-1.5 text-[11px] font-medium text-accent transition-colors hover:bg-accent/10 disabled:cursor-default disabled:opacity-50"
         >
           Limpar tudo
         </button>
@@ -36,7 +36,7 @@ export function RecentSearchesPanel({ items, onOpen, onClear, isClearing }: Rece
             disabled={!item.canOpen || !item.conversationId}
             onClick={() => onOpen(item)}
             title={item.canOpen ? item.label : `${item.label} sem conversa disponível`}
-            className="flex w-[78px] min-w-[78px] shrink-0 flex-col items-center rounded-xl px-1 py-2 text-center transition-colors enabled:hover:bg-surface-raised/70 disabled:cursor-default disabled:opacity-55"
+            className="flex w-[78px] min-w-[78px] shrink-0 cursor-pointer flex-col items-center rounded-xl px-1 py-2 text-center transition-colors enabled:hover:bg-surface-raised/70 disabled:cursor-default disabled:opacity-55"
           >
             <Avatar name={item.label} size="md" className="h-11 w-11 ring-1 ring-white/5" />
             <span className="mt-1.5 w-full truncate text-[11px] font-medium text-text">{item.label}</span>

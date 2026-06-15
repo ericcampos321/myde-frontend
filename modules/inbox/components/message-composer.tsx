@@ -2,6 +2,7 @@
 
 import {
   KeyboardEvent,
+  TransitionEvent,
   useCallback,
   useEffect,
   useRef,
@@ -9,6 +10,7 @@ import {
 } from "react";
 import { Textarea } from "@/components/ui/textarea";
 import { AiSuggestionButton } from "./ai-suggestion-button";
+import { EmojiPickerPopover } from "./emoji-picker-popover";
 import { useMeQuery } from "@/modules/inbox/hooks/use-me-query";
 import { apiClient } from "@/services/http/api-client";
 import { parseApiError } from "@/services/http/api-error";
@@ -22,23 +24,32 @@ interface MessageComposerProps {
 type MessageState = "idle" | "success" | "error" | "sending";
 const AI_SUGGESTION_BLOCKED_FALLBACK_MESSAGE =
   "Não consegui gerar uma sugestão segura para essa mensagem. Revise manualmente antes de responder.";
-const AI_SUGGESTION_EMPTY_FALLBACK_MESSAGE =
-  "Não foi possível gerar uma sugestão para essa conversa.";
+const AI_SUGGESTION_EMPTY_FALLBACK_MESSAGE = "Não foi possível gerar uma sugestão para essa conversa.";
 
 // Altura é 100% controlada por JS (sem classes Tailwind de altura), garantindo
 // o auto-resize. Vazio = compacto; cresce até o limite; depois, scroll interno.
 const MIN_TEXTAREA_HEIGHT = 42;
 const MAX_TEXTAREA_HEIGHT = 150;
 
-export function MessageComposer({
-  conversationId,
-  onMessageSent,
-}: MessageComposerProps) {
+function prefersReducedMotion(): boolean {
+  return (
+    typeof window !== "undefined" &&
+    typeof window.matchMedia === "function" &&
+    window.matchMedia("(prefers-reduced-motion: reduce)").matches
+  );
+}
+
+export function MessageComposer({ conversationId, onMessageSent }: MessageComposerProps) {
   const [text, setText] = useState("");
   const [messageState, setMessageState] = useState<MessageState>("idle");
   const [errorMessage, setErrorMessage] = useState("");
   const [suggestionMessage, setSuggestionMessage] = useState<string | null>(null);
+  const [emojiOpen, setEmojiOpen] = useState(false);
+  // Montagem separada da intenção: mantém o popover no DOM durante a animação de
+  // saída e só desmonta no fim da transição (ou imediatamente em reduced-motion).
+  const [emojiMounted, setEmojiMounted] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const emojiAreaRef = useRef<HTMLDivElement>(null);
   const { data: me } = useMeQuery();
 
   // Auto-resize: zera a altura para medir o conteúdo real, aplica o clamp
@@ -47,13 +58,9 @@ export function MessageComposer({
     const textarea = textareaRef.current;
     if (!textarea) return;
     textarea.style.height = "auto";
-    const next = Math.max(
-      MIN_TEXTAREA_HEIGHT,
-      Math.min(textarea.scrollHeight, MAX_TEXTAREA_HEIGHT)
-    );
+    const next = Math.max(MIN_TEXTAREA_HEIGHT, Math.min(textarea.scrollHeight, MAX_TEXTAREA_HEIGHT));
     textarea.style.height = `${next}px`;
-    textarea.style.overflowY =
-      textarea.scrollHeight > MAX_TEXTAREA_HEIGHT ? "auto" : "hidden";
+    textarea.style.overflowY = textarea.scrollHeight > MAX_TEXTAREA_HEIGHT ? "auto" : "hidden";
   }, []);
 
   // Reajusta sempre que o texto muda (digitação, sugestão IA, envio/limpeza).
@@ -62,6 +69,74 @@ export function MessageComposer({
     const id = requestAnimationFrame(resizeTextarea);
     return () => cancelAnimationFrame(id);
   }, [text, resizeTextarea]);
+
+  // Abre: monta e, no próximo frame, troca para o estado "aberto" (dispara a
+  // transição de entrada). Em reduced-motion abre direto, sem animar.
+  const openEmojiPicker = useCallback(() => {
+    setEmojiMounted(true);
+    if (prefersReducedMotion()) {
+      setEmojiOpen(true);
+      return;
+    }
+    requestAnimationFrame(() => setEmojiOpen(true));
+  }, []);
+
+  // Fecha: marca a intenção como fechada (dispara a transição de saída). O
+  // desmonte acontece no onTransitionEnd; em reduced-motion desmonta na hora.
+  const closeEmojiPicker = useCallback(() => {
+    setEmojiOpen(false);
+    if (prefersReducedMotion()) setEmojiMounted(false);
+  }, []);
+
+  const toggleEmojiPicker = useCallback(() => {
+    if (emojiOpen) closeEmojiPicker();
+    else openEmojiPicker();
+  }, [emojiOpen, openEmojiPicker, closeEmojiPicker]);
+
+  // Desmonta só quando a transição de saída termina (e apenas a do próprio shell).
+  function handleEmojiShellTransitionEnd(event: TransitionEvent<HTMLDivElement>) {
+    if (event.target !== event.currentTarget) return;
+    if (!emojiOpen) setEmojiMounted(false);
+  }
+
+  // Fecha o picker ao clicar fora (botão + popover ficam dentro de emojiAreaRef)
+  // ou ao pressionar Escape. Listeners só ativos com o picker aberto.
+  useEffect(() => {
+    if (!emojiOpen) return;
+
+    function handlePointerDown(event: PointerEvent) {
+      if (!emojiAreaRef.current?.contains(event.target as Node)) {
+        closeEmojiPicker();
+      }
+    }
+    function handleKeydown(event: globalThis.KeyboardEvent) {
+      if (event.key === "Escape") closeEmojiPicker();
+    }
+
+    document.addEventListener("pointerdown", handlePointerDown);
+    document.addEventListener("keydown", handleKeydown);
+    return () => {
+      document.removeEventListener("pointerdown", handlePointerDown);
+      document.removeEventListener("keydown", handleKeydown);
+    };
+  }, [emojiOpen, closeEmojiPicker]);
+
+  function insertEmoji(emoji: string) {
+    const el = textareaRef.current;
+    const { value, cursor } = insertEmojiAtSelection(text, el?.selectionStart, el?.selectionEnd, emoji);
+
+    setText(value);
+    if (suggestionMessage) setSuggestionMessage(null);
+    if (messageState !== "idle") setMessageState("idle");
+
+    // No próximo frame (DOM já com o novo valor): foca e posiciona o cursor.
+    requestAnimationFrame(() => {
+      const node = textareaRef.current;
+      node?.focus();
+      node?.setSelectionRange(cursor, cursor);
+      resizeTextarea();
+    });
+  }
 
   function handleKeyDown(e: KeyboardEvent<HTMLTextAreaElement>) {
     if (e.key === "Enter" && !e.shiftKey) {
@@ -123,14 +198,22 @@ export function MessageComposer({
       )}
 
       <div className="flex min-h-[62px] items-end gap-1.5 px-3.5">
-        <FooterIconButton label="Anexar" disabled>
-          <PlusIcon />
-        </FooterIconButton>
-
         <div className="flex min-w-0 flex-1 items-end gap-1 rounded-[22px] bg-chat-footer px-2 py-1.5">
-          <FooterIconButton label="Emoji" disabled compact>
-            <EmojiIcon />
-          </FooterIconButton>
+          <div ref={emojiAreaRef} className="relative shrink-0">
+            <FooterIconButton label="Emoji" compact active={emojiOpen} onClick={toggleEmojiPicker}>
+              <EmojiIcon />
+            </FooterIconButton>
+
+            {emojiMounted && (
+              <div
+                className="emoji-picker-popover-shell"
+                data-state={emojiOpen ? "open" : "closed"}
+                onTransitionEnd={handleEmojiShellTransitionEnd}
+              >
+                <EmojiPickerPopover onEmojiSelect={insertEmoji} />
+              </div>
+            )}
+          </div>
 
           <Textarea
             ref={textareaRef}
@@ -150,14 +233,9 @@ export function MessageComposer({
             disabled={isSending}
           />
 
-          <div className="flex shrink-0 items-center gap-0.5">
+          <div className="flex shrink-0 items-center gap-2">
             {canSuggest && (
-              <AiSuggestionButton
-                conversationId={conversationId}
-                onSuggestion={handleSuggestion}
-                disabled={isSending}
-                compact
-              />
+              <AiSuggestionButton conversationId={conversationId} onSuggestion={handleSuggestion} disabled={isSending} compact />
             )}
 
             {hasText && (
@@ -166,7 +244,7 @@ export function MessageComposer({
                 onClick={() => void handleSend()}
                 disabled={!canSend || isSending}
                 aria-label="Enviar mensagem"
-                className="flex h-9 w-9 items-center justify-center rounded-full border-0 bg-accent text-[#0b141a] outline-none transition-colors hover:bg-accent-hover focus:outline-none focus:ring-0 disabled:cursor-default disabled:opacity-70"
+                className="flex h-9 w-9 cursor-pointer items-center justify-center rounded-full border-0 bg-accent text-[#0b141a] outline-none transition-colors hover:bg-accent-hover focus:outline-none focus:ring-0 disabled:cursor-default disabled:opacity-70"
               >
                 {isSending ? <SpinnerIcon /> : <SendIcon />}
               </button>
@@ -178,20 +256,44 @@ export function MessageComposer({
   );
 }
 
+function clampIndex(value: number, max: number): number {
+  if (!Number.isFinite(value) || value < 0) return max;
+  return Math.min(value, max);
+}
+
+/**
+ * Insere `emoji` em `value` respeitando a seleção atual (substitui o intervalo
+ * selecionado). Função pura — retorna o novo texto e a posição final do cursor
+ * (logo após o emoji). Seleção ausente → insere no fim.
+ */
+export function insertEmojiAtSelection(
+  value: string,
+  selectionStart: number | null | undefined,
+  selectionEnd: number | null | undefined,
+  emoji: string
+): { value: string; cursor: number } {
+  const len = value.length;
+  const start = clampIndex(selectionStart ?? len, len);
+  const end = clampIndex(selectionEnd ?? len, len);
+  const lo = Math.min(start, end);
+  const hi = Math.max(start, end);
+
+  return {
+    value: value.slice(0, lo) + emoji + value.slice(hi),
+    cursor: lo + emoji.length,
+  };
+}
+
 interface AiSuggestionComposerState {
   nextText: string;
   feedbackMessage: string | null;
 }
 
-export function resolveAiSuggestionComposerState(
-  currentText: string,
-  suggestion: AiSuggestion
-): AiSuggestionComposerState {
+export function resolveAiSuggestionComposerState(currentText: string, suggestion: AiSuggestion): AiSuggestionComposerState {
   if (suggestion.blocked) {
     return {
       nextText: currentText,
-      feedbackMessage:
-        suggestion.userMessage ?? AI_SUGGESTION_BLOCKED_FALLBACK_MESSAGE,
+      feedbackMessage: suggestion.userMessage ?? AI_SUGGESTION_BLOCKED_FALLBACK_MESSAGE,
     };
   }
 
@@ -215,23 +317,28 @@ function FooterIconButton({
   onClick,
   disabled = false,
   compact = false,
+  active = false,
   children,
 }: {
   label: string;
   onClick?: () => void;
   disabled?: boolean;
   compact?: boolean;
+  active?: boolean;
   children: React.ReactNode;
 }) {
   return (
     <button
       type="button"
       aria-label={label}
+      aria-pressed={onClick ? active : undefined}
       title={disabled ? undefined : label}
       onClick={onClick}
       disabled={disabled}
       className={[
-        "flex items-center justify-center rounded-full border-0 outline-none text-text-muted transition-colors enabled:hover:bg-text/8 enabled:hover:text-text focus:outline-none focus:ring-0 disabled:cursor-default disabled:opacity-60",
+        "flex items-center justify-center rounded-full border-0 outline-none transition-colors enabled:hover:bg-text/8 enabled:hover:text-text focus:outline-none focus:ring-0 disabled:cursor-default disabled:opacity-60",
+        active ? "text-accent" : "text-text-muted",
+        onClick && !disabled ? "cursor-pointer" : "",
         compact ? "h-9 w-9" : "h-10 w-10",
       ].join(" ")}
     >

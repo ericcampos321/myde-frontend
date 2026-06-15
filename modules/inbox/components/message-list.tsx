@@ -133,17 +133,24 @@ export function MessageList({
 function renderDayGroups(
   groups: ReturnType<typeof groupMessagesByDay>
 ): ReactNode {
-  // groupStart (cauda da bolha) acompanha a troca de direção ao longo da lista
-  // inteira, independente do dia.
-  let prevDirection: Message["direction"] | null = null;
-
   return groups.map((group) => (
     <div key={`${group.dayKey}-${group.messages[0]!.id}`}>
       <DateSeparator label={group.label} />
-      {group.messages.map((msg) => {
-        const groupStart = prevDirection !== null && prevDirection !== msg.direction;
-        prevDirection = msg.direction;
-        return <MessageBubble key={msg.id} message={msg} groupStart={groupStart} />;
+      {group.messages.map((message, index) => {
+        const previous = group.messages[index - 1];
+        const next = group.messages[index + 1];
+        const isFirstInSequence =
+          !previous || previous.direction !== message.direction;
+        const isLastInSequence = !next || next.direction !== message.direction;
+
+        return (
+          <MessageBubble
+            key={message.id}
+            message={message}
+            isFirstInSequence={isFirstInSequence}
+            isLastInSequence={isLastInSequence}
+          />
+        );
       })}
     </div>
   ));

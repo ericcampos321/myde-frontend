@@ -7,7 +7,7 @@ import { ConfigError } from "@/config/env";
 /**
  * Helpers para os route handlers do BFF (app/api/**).
  *
- * Sucesso: o JSON sanitizado direto. Erro: shape padronizado
+ * Sucesso: o JSON sanitizado direto. Erro: padronizado
  * `{ error: { code, message } }`, preservando o status real do backend quando houver.
  */
 
@@ -32,11 +32,7 @@ export function forwardHeaders(request: Request): Record<string, string> {
 }
 
 /** Resposta de erro padronizada do BFF. */
-export function bffError(
-  code: string,
-  message: string,
-  status: number
-): NextResponse<BffErrorBody> {
+export function bffError(code: string, message: string, status: number): NextResponse<BffErrorBody> {
   return NextResponse.json({ error: { code, message } }, { status });
 }
 
@@ -59,11 +55,7 @@ function defaultCodeForStatus(status: number): string {
  */
 export function handleBffError(error: unknown): NextResponse<BffErrorBody> {
   if (error instanceof BackendError) {
-    return bffError(
-      error.code ?? defaultCodeForStatus(error.status),
-      error.message,
-      error.status
-    );
+    return bffError(error.code ?? defaultCodeForStatus(error.status), error.message, error.status);
   }
 
   if (error instanceof ConfigError) {

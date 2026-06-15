@@ -31,7 +31,7 @@ export function ConversationListItem({
     <button
       onClick={onClick}
       className={cn(
-        "group block w-full px-3 py-1 text-left focus-visible:outline-none"
+        "group block w-full cursor-pointer px-3 py-1 text-left focus-visible:outline-none"
       )}
       aria-pressed={selected}
       aria-label={`Conversa com ${contactName}`}
