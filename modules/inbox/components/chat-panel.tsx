@@ -6,7 +6,7 @@ import { flattenMessagePages } from "@/modules/inbox/utils/flatten-message-pages
 import { MessageList } from "./message-list";
 import { MessageSearchPanel } from "./message-search-panel";
 import { MessageComposer } from "./message-composer";
-import { Avatar } from "@/components/ui/avatar";
+import { ContactAvatar } from "./contact-avatar";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import type { Conversation } from "@/modules/inbox/types/inbox.types";
@@ -51,8 +51,10 @@ export function ChatPanel({ conversationId, conversation, onBack }: ChatPanelPro
 
         {conversation ? (
           <>
-            <Avatar
+            <ContactAvatar
               name={conversation.contactName}
+              phone={conversation.contactPhone}
+              id={conversation.id}
               color={conversation.avatarColor}
               size="md"
             />

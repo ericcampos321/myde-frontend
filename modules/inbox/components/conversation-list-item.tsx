@@ -1,6 +1,6 @@
 "use client";
 
-import { Avatar } from "@/components/ui/avatar";
+import { ContactAvatar } from "./contact-avatar";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/utils/cn";
 import { formatMessageTime } from "@/modules/inbox/utils/format-message-time";
@@ -44,8 +44,10 @@ export function ConversationListItem({
             : "bg-transparent group-hover:bg-surface-raised group-focus-visible:bg-surface-raised"
         )}
       >
-        <Avatar
+        <ContactAvatar
           name={contactName}
+          phone={conversation.contactPhone}
+          id={conversation.id}
           color={avatarColor}
           size="lg"
           className="h-[49px] w-[49px]"

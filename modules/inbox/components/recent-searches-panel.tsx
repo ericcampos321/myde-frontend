@@ -1,6 +1,6 @@
 "use client";
 
-import { Avatar } from "@/components/ui/avatar";
+import { ContactAvatar } from "./contact-avatar";
 import type { RecentSearch } from "@/modules/inbox/types/inbox.types";
 
 interface RecentSearchesPanelProps {
@@ -38,7 +38,13 @@ export function RecentSearchesPanel({ items, onOpen, onClear, isClearing }: Rece
             title={item.canOpen ? item.label : `${item.label} sem conversa disponível`}
             className="flex w-[78px] min-w-[78px] shrink-0 cursor-pointer flex-col items-center rounded-xl px-1 py-2 text-center transition-colors enabled:hover:bg-surface-raised/70 disabled:cursor-default disabled:opacity-55"
           >
-            <Avatar name={item.label} size="md" className="h-11 w-11 ring-1 ring-white/5" />
+            <ContactAvatar
+              name={item.label}
+              phone={item.subtitle}
+              id={item.targetId}
+              size="md"
+              className="h-11 w-11 ring-1 ring-white/5"
+            />
             <span className="mt-1.5 w-full truncate text-[11px] font-medium text-text">{item.label}</span>
             <span className="w-full truncate text-[9.5px] text-text-muted/75">{item.subtitle}</span>
           </button>

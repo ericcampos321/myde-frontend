@@ -1,6 +1,6 @@
 "use client";
 
-import { Avatar } from "@/components/ui/avatar";
+import { ContactAvatar } from "./contact-avatar";
 import { cn } from "@/utils/cn";
 import { formatMessageTime } from "@/modules/inbox/utils/format-message-time";
 import type { Contact, Conversation } from "@/modules/inbox/types/inbox.types";
@@ -44,8 +44,10 @@ export function ContactListItem({
             : "bg-transparent"
         )}
       >
-        <Avatar
+        <ContactAvatar
           name={displayName}
+          phone={contact.phone}
+          id={contact.id}
           size="lg"
           className="h-[49px] w-[49px]"
         />
