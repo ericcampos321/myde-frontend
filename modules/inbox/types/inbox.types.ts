@@ -53,6 +53,23 @@ export interface MessagePage {
   hasMore: boolean;
 }
 
+export interface MessageSearchResult {
+  messageId: string;
+  conversationId: string;
+  bodyPreview: string;
+  direction: "inbound" | "outbound";
+  status: "pending" | MessageStatus;
+  createdAt: string | null;
+  matchedText: string | null;
+}
+
+/** Página de resultados da busca. `items` em DESC (match mais recente primeiro). */
+export interface MessageSearchPage {
+  items: MessageSearchResult[];
+  nextCursor: string | null;
+  hasMore: boolean;
+}
+
 export interface SentMessage {
   id: string;
   conversationId: string;

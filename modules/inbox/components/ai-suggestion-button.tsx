@@ -45,49 +45,46 @@ export function AiSuggestionButton({
         type="button"
         onClick={handleClick}
         disabled={disabled || isPending}
-        aria-label="Gerar resposta com IA"
+        aria-label="Gerar sugestão com IA"
         aria-busy={isPending}
-        title="Gerar resposta com IA"
+        title="Gerar sugestão com IA"
         className={[
-          "flex items-center justify-center rounded-full border-0 outline-none text-text-muted transition-colors enabled:hover:bg-text/8 enabled:hover:text-text focus:outline-none focus:ring-0 disabled:cursor-default disabled:opacity-60",
-          compact ? "h-9 w-9" : "h-10 w-10",
+          "ai-generate-button",
+          compact ? "ai-generate-button--compact" : "",
+          isPending ? "ai-generate-button--loading" : "",
           className ?? "",
         ].join(" ")}
       >
-        {isPending ? <SpinnerIcon /> : <AiGenerateIcon />}
+        <span className="ai-generate-button__icon">
+          <SparklesIcon />
+        </span>
+        <span className="ai-generate-button__text">
+          {isPending ? "Gerando..." : "Gerar IA"}
+        </span>
       </button>
     </div>
   );
 }
 
-function AiGenerateIcon() {
+function SparklesIcon() {
   return (
-    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden>
+    <svg viewBox="0 0 24 24" fill="none" aria-hidden>
       <path
-        d="M6 17.5 17.5 6"
+        d="m12 3 1.45 4.05L17.5 8.5l-4.05 1.45L12 14l-1.45-4.05L6.5 8.5l4.05-1.45L12 3Z"
         stroke="currentColor"
-        strokeWidth="1.8"
-        strokeLinecap="round"
+        strokeWidth="1.6"
         strokeLinejoin="round"
       />
-      <path d="M14 6h3.5v3.5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
-      <path d="m5.5 12.5 1-2.5 2.5-1-2.5-1-1-2.5-1 2.5-2.5 1 2.5 1 1 2.5Z" fill="currentColor" />
-    </svg>
-  );
-}
-
-function SpinnerIcon() {
-  return (
-    <svg
-      width="22"
-      height="22"
-      viewBox="0 0 24 24"
-      fill="none"
-      className="animate-spin"
-      aria-hidden
-    >
-      <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" strokeOpacity="0.25" />
-      <path d="M12 2a10 10 0 0 1 10 10" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
+      <path
+        d="m18.5 13 .8 2.2 2.2.8-2.2.8-.8 2.2-.8-2.2-2.2-.8 2.2-.8.8-2.2Z"
+        stroke="currentColor"
+        strokeWidth="1.45"
+        strokeLinejoin="round"
+      />
+      <path
+        d="m5.5 14 .65 1.85L8 16.5l-1.85.65L5.5 19l-.65-1.85L3 16.5l1.85-.65L5.5 14Z"
+        fill="currentColor"
+      />
     </svg>
   );
 }

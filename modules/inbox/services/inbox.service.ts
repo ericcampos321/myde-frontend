@@ -8,6 +8,7 @@ import type {
   RawContact,
   RawConversation,
   RawMessagePage,
+  RawMessageSearchPage,
   RawRecentSearch,
   RawSentMessage,
 } from "@/modules/inbox/services/inbox.raw.types";
@@ -82,6 +83,19 @@ export function getMessagesPage(
     : inboxEndpoints.conversationMessages(conversationId);
 
   return backendClient.get<RawMessagePage>(path, { headers: ctx.headers });
+}
+
+export function getMessageSearchPage(
+  conversationId: string,
+  params: { q: string; limit?: string; cursor?: string },
+  ctx: RequestContext = {}
+): Promise<RawMessageSearchPage> {
+  const query = new URLSearchParams({ q: params.q });
+  if (params.limit) query.set("limit", params.limit);
+  if (params.cursor) query.set("cursor", params.cursor);
+
+  const path = `${inboxEndpoints.conversationMessages(conversationId)}/search?${query.toString()}`;
+  return backendClient.get<RawMessageSearchPage>(path, { headers: ctx.headers });
 }
 
 export function markConversationAsRead(

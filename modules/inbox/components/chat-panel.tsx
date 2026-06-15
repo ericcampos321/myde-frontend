@@ -1,8 +1,10 @@
 "use client";
 
+import { useState } from "react";
 import { useConversationMessagesQuery } from "@/modules/inbox/hooks/use-conversation-messages-query";
 import { flattenMessagePages } from "@/modules/inbox/utils/flatten-message-pages";
 import { MessageList } from "./message-list";
+import { MessageSearchPanel } from "./message-search-panel";
 import { MessageComposer } from "./message-composer";
 import { Avatar } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -26,6 +28,7 @@ export function ChatPanel({ conversationId, conversation, onBack }: ChatPanelPro
     isFetchingNextPage,
   } = useConversationMessagesQuery(conversationId);
   const messages = flattenMessagePages(data?.pages);
+  const [searchOpen, setSearchOpen] = useState(false);
   const subtitle = conversation
     ? conversation.unread > 0
       ? `${conversation.unread} mensagem${conversation.unread > 1 ? "s" : ""} não lida${conversation.unread > 1 ? "s" : ""}`
@@ -33,7 +36,7 @@ export function ChatPanel({ conversationId, conversation, onBack }: ChatPanelPro
     : "";
 
   return (
-    <div className="chat-bg flex h-full flex-col">
+    <div className="chat-bg relative flex h-full flex-col">
       <div className="flex h-[60px] shrink-0 items-center gap-3 border-b border-border bg-chat-header px-4">
         <Button
           variant="ghost"
@@ -61,7 +64,10 @@ export function ChatPanel({ conversationId, conversation, onBack }: ChatPanelPro
               </p>
             </div>
             <div className="flex items-center gap-1">
-              <HeaderIconButton label="Pesquisar na conversa">
+              <HeaderIconButton
+                label="Pesquisar na conversa"
+                onClick={() => setSearchOpen((open) => !open)}
+              >
                 <HeaderSearchIcon />
               </HeaderIconButton>
               <HeaderIconButton label="Mais opções">
@@ -97,15 +103,24 @@ export function ChatPanel({ conversationId, conversation, onBack }: ChatPanelPro
           await refetch();
         }}
       />
+
+      {searchOpen && (
+        <MessageSearchPanel
+          conversationId={conversationId}
+          onClose={() => setSearchOpen(false)}
+        />
+      )}
     </div>
   );
 }
 
 function HeaderIconButton({
   label,
+  onClick,
   children,
 }: {
   label: string;
+  onClick?: () => void;
   children: React.ReactNode;
 }) {
   return (
@@ -113,6 +128,7 @@ function HeaderIconButton({
       type="button"
       aria-label={label}
       title={label}
+      onClick={onClick}
       className="flex h-10 w-10 items-center justify-center rounded-full border-0 outline-none text-text-muted transition-colors hover:bg-surface-active hover:text-text focus:outline-none focus:ring-0"
     >
       {children}

@@ -24,6 +24,7 @@ export function MessageBubble({ message, groupStart = false }: MessageBubbleProp
 
   return (
     <div
+      data-message-id={message.id}
       className={cn(
         "flex my-[1px]",
         isOut ? "justify-end" : "justify-start",

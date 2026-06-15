@@ -66,6 +66,22 @@ export interface RawMessagePage extends WithExtra {
   hasMore: boolean;
 }
 
+export interface RawMessageSearchResult extends WithExtra {
+  messageId: string;
+  conversationId: string;
+  bodyPreview: string;
+  direction: "inbound" | "outbound";
+  status: "pending" | "sent" | "delivered" | "read" | "failed";
+  createdAt: string;
+  matchedText: string | null;
+}
+
+export interface RawMessageSearchPage extends WithExtra {
+  items: RawMessageSearchResult[];
+  nextCursor: string | null;
+  hasMore: boolean;
+}
+
 export interface RawSentMessage extends WithExtra {
   id: string;
   conversationId: string;

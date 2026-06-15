@@ -20,6 +20,8 @@ import type {
   RawConversation,
   RawMessage,
   RawMessagePage,
+  RawMessageSearchPage,
+  RawMessageSearchResult,
   RawRecentSearch,
   RawSentMessage,
 } from "@/modules/inbox/services/inbox.raw.types";
@@ -32,6 +34,8 @@ import type {
   Conversation,
   Message,
   MessagePage,
+  MessageSearchPage,
+  MessageSearchResult,
   RecentSearch,
   SentMessage,
 } from "@/modules/inbox/types/inbox.types";
@@ -245,6 +249,41 @@ export function sanitizeMessages(raw: RawMessage[]): Message[] {
 export function sanitizeMessagePage(raw: RawMessagePage): MessagePage {
   return {
     items: sanitizeMessages(Array.isArray(raw.items) ? raw.items : []),
+    nextCursor: typeof raw.nextCursor === "string" ? raw.nextCursor : null,
+    hasMore: Boolean(raw.hasMore),
+  };
+}
+
+const SEARCH_DIRECTIONS = ["inbound", "outbound"] as const;
+const SEARCH_STATUSES = [
+  "pending",
+  "sent",
+  "delivered",
+  "read",
+  "failed",
+] as const;
+
+export function sanitizeMessageSearchResult(
+  raw: RawMessageSearchResult
+): MessageSearchResult {
+  return {
+    messageId: sanitizeId(raw.messageId),
+    conversationId: sanitizeId(raw.conversationId),
+    bodyPreview: sanitizeText(raw.bodyPreview),
+    direction: sanitizeEnum(raw.direction, SEARCH_DIRECTIONS, "inbound"),
+    status: sanitizeEnum(raw.status, SEARCH_STATUSES, "sent"),
+    createdAt: sanitizeIsoDate(raw.createdAt),
+    matchedText: sanitizeTextOrNull(raw.matchedText),
+  };
+}
+
+export function sanitizeMessageSearchPage(
+  raw: RawMessageSearchPage
+): MessageSearchPage {
+  return {
+    items: (Array.isArray(raw.items) ? raw.items : []).map(
+      sanitizeMessageSearchResult
+    ),
     nextCursor: typeof raw.nextCursor === "string" ? raw.nextCursor : null,
     hasMore: Boolean(raw.hasMore),
   };

@@ -6,6 +6,7 @@ import {
   sanitizeConversation,
   sanitizeMessage,
   sanitizeMessagePage,
+  sanitizeMessageSearchPage,
   sanitizeRecentSearch,
   sanitizeUrl,
 } from "@/modules/inbox/services/inbox.sanitizer";
@@ -16,6 +17,7 @@ import type {
   RawConversation,
   RawMessage,
   RawMessagePage,
+  RawMessageSearchPage,
   RawRecentSearch,
 } from "@/modules/inbox/services/inbox.raw.types";
 
@@ -353,5 +355,75 @@ describe("sanitizeMessagePage", () => {
         hasMore: false,
       } as RawMessagePage).hasMore
     ).toBe(false);
+  });
+});
+
+describe("sanitizeMessageSearchPage", () => {
+  it("sanitiza items (whitelists, ids, datas, texto) e descarta extras", () => {
+    const raw = {
+      items: [
+        {
+          messageId: "m1",
+          conversationId: "c1",
+          bodyPreview: "<b>Suave</b> Eric",
+          direction: "outbound",
+          status: "read",
+          createdAt: "2026-06-14T01:02:23.000Z",
+          matchedText: "Er",
+          secret: "nao-vaza",
+        },
+      ],
+      nextCursor: "Y3Vyc29y",
+      hasMore: true,
+      extra: "x",
+    } as unknown as RawMessageSearchPage;
+
+    const page = sanitizeMessageSearchPage(raw);
+
+    expect(page).toEqual({
+      items: [
+        {
+          messageId: "m1",
+          conversationId: "c1",
+          bodyPreview: "Suave Eric",
+          direction: "outbound",
+          status: "read",
+          createdAt: "2026-06-14T01:02:23.000Z",
+          matchedText: "Er",
+        },
+      ],
+      nextCursor: "Y3Vyc29y",
+      hasMore: true,
+    });
+    expect(page.items[0]).not.toHaveProperty("secret");
+  });
+
+  it("direction/status inválidos caem no fallback; items ausente → []", () => {
+    const page = sanitizeMessageSearchPage({
+      items: [
+        {
+          messageId: "m1",
+          conversationId: "c1",
+          bodyPreview: "x",
+          direction: "sideways",
+          status: "exploded",
+          createdAt: "lixo",
+          matchedText: null,
+        },
+      ],
+      nextCursor: 5,
+      hasMore: "yes",
+    } as unknown as RawMessageSearchPage);
+
+    expect(page.items[0]!.direction).toBe("inbound");
+    expect(page.items[0]!.status).toBe("sent");
+    expect(page.items[0]!.createdAt).toBe(null);
+    expect(page.nextCursor).toBe(null);
+    expect(page.hasMore).toBe(true);
+
+    expect(
+      sanitizeMessageSearchPage({ nextCursor: null, hasMore: false } as unknown as RawMessageSearchPage)
+        .items
+    ).toEqual([]);
   });
 });
