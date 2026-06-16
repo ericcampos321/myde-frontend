@@ -4,6 +4,7 @@ import {
   sanitizeAiSuggestion,
   sanitizeContact,
   sanitizeConversation,
+  sanitizeAiUsagePage,
   sanitizeMessage,
   sanitizeMessagePage,
   sanitizeMessageSearchPage,
@@ -13,6 +14,7 @@ import {
 import type {
   RawAgent,
   RawAiSuggestion,
+  RawAiUsagePage,
   RawContact,
   RawConversation,
   RawMessage,
@@ -222,9 +224,15 @@ describe("campos estruturais", () => {
       unread: 2,
       lastMessage: "oi",
       lastMessageAt: "2026-06-14T01:02:23.000Z",
+      lastInboundMessageId: "msg-in-1",
+      lastInboundMessageAt: "2026-06-14T01:02:20.000Z",
     } as unknown as RawConversation;
 
     expect(sanitizeConversation(base).avatarColor).toBe("#2F855A");
+    expect(sanitizeConversation(base).lastInboundMessageId).toBe("msg-in-1");
+    expect(sanitizeConversation(base).lastInboundMessageAt).toBe(
+      "2026-06-14T01:02:20.000Z"
+    );
     expect(
       sanitizeConversation({
         ...base,
@@ -425,5 +433,132 @@ describe("sanitizeMessageSearchPage", () => {
       sanitizeMessageSearchPage({ nextCursor: null, hasMore: false } as unknown as RawMessageSearchPage)
         .items
     ).toEqual([]);
+  });
+});
+
+describe("sanitizeAiUsagePage", () => {
+  it("sanitiza summary/byModel/recent e descarta campos extras/sensíveis", () => {
+    const raw = {
+      summary: {
+        totalInteractions: 5,
+        completedInteractions: 4,
+        blockedInteractions: 1,
+        promptTokens: 1200,
+        completionTokens: 800,
+        totalTokens: 2000,
+        estimatedCostUsd: 0.0008,
+        avgDurationMs: 950,
+      },
+      byModel: [
+        { model: "gpt-4o-mini", interactions: 4, totalTokens: 2000, estimatedCostUsd: 0.0008 },
+        { model: null, interactions: 1, totalTokens: 0, estimatedCost: null },
+      ],
+      recent: {
+        items: [
+          {
+            id: "log-1",
+            createdAt: "2026-06-13T10:00:00.000Z",
+            conversationId: "conv-1",
+            stage: "auto_reply",
+            model: "gpt-4o-mini",
+            source: "openai",
+            provider: "openai",
+            riskLevel: "low",
+            blocked: false,
+            promptTokens: 300,
+            cachedPromptTokens: 0,
+            completionTokens: 200,
+            totalTokens: 500,
+            estimatedCostUsd: 0.000225,
+            durationMs: 900,
+            // campos que NÃO devem passar:
+            prompt: "system prompt secreto",
+            userMessage: "mensagem crua do cliente",
+            apiKey: "sk-123",
+          },
+        ],
+        nextCursor: "cursor-2",
+        hasNextPage: true,
+      },
+      extra: "x",
+    } as unknown as RawAiUsagePage;
+
+    const page = sanitizeAiUsagePage(raw);
+
+    expect(page.summary.totalTokens).toBe(2000);
+    expect(page.summary.estimatedCost).toBe(0.0008);
+    expect(page.summary.estimatedCostUsd).toBe(0.0008);
+    expect(page.byModel).toHaveLength(2);
+    expect(page.byModel[0]!.estimatedCostUsd).toBe(0.0008);
+    expect(page.byModel[1]!.estimatedCost).toBe(null);
+
+    expect(page.recent.nextCursor).toBe("cursor-2");
+    expect(page.recent.hasNextPage).toBe(true);
+
+    const item = page.recent.items[0]!;
+    expect(Object.keys(item).sort()).toEqual(
+      [
+        "blocked",
+        "cachedPromptTokens",
+        "completionTokens",
+        "conversationId",
+        "createdAt",
+        "durationMs",
+        "estimatedCost",
+        "estimatedCostUsd",
+        "id",
+        "model",
+        "promptTokens",
+        "provider",
+        "riskLevel",
+        "source",
+        "stage",
+        "totalTokens",
+      ].sort()
+    );
+    expect(item.estimatedCostUsd).toBe(0.000225);
+    // nada sensível vaza
+    expect(item).not.toHaveProperty("prompt");
+    expect(item).not.toHaveProperty("userMessage");
+    expect(item).not.toHaveProperty("apiKey");
+  });
+
+  it("valores inválidos viram seguros (cost/avg null; risk/source fallback; arrays ausentes → [])", () => {
+    const page = sanitizeAiUsagePage({
+      summary: {
+        totalInteractions: -3,
+        completedInteractions: "x",
+        blockedInteractions: 2,
+        promptTokens: "abc",
+        completionTokens: 10,
+        totalTokens: 10,
+        estimatedCost: "nope",
+        avgDurationMs: null,
+      },
+      recent: [
+          {
+            createdAt: "lixo",
+            conversationId: "c1",
+            model: null,
+            source: "skynet",
+            riskLevel: "extreme",
+            blocked: "yes",
+            totalTokens: null,
+            durationMs: null,
+          },
+        ],
+    } as unknown as RawAiUsagePage);
+
+    expect(page.summary.totalInteractions).toBe(0);
+    expect(page.summary.promptTokens).toBe(0);
+    expect(page.summary.estimatedCost).toBe(null);
+    expect(page.summary.avgDurationMs).toBe(null);
+    expect(page.byModel).toEqual([]);
+    expect(page.recent.items[0]!.createdAt).toBe(null);
+    expect(page.recent.items[0]!.source).toBe("stub");
+    expect(page.recent.items[0]!.riskLevel).toBe("low");
+    // sanitizeBoolean é estrita: só `true` vira true; "yes" → false (seguro).
+    expect(page.recent.items[0]!.blocked).toBe(false);
+    expect(page.recent.hasNextPage).toBe(false);
   });
 });

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import { useConversationMessagesQuery } from "@/modules/inbox/hooks/use-conversation-messages-query";
 import { flattenMessagePages } from "@/modules/inbox/utils/flatten-message-pages";
 import { MessageList } from "./message-list";
@@ -14,10 +14,20 @@ import type { Conversation } from "@/modules/inbox/types/inbox.types";
 interface ChatPanelProps {
   conversationId: string;
   conversation: Conversation | null;
+  notificationSoundMuted: boolean;
+  viewportSignal: number;
+  onToggleNotificationSound: () => void;
   onBack: () => void;
 }
 
-export function ChatPanel({ conversationId, conversation, onBack }: ChatPanelProps) {
+export function ChatPanel({
+  conversationId,
+  conversation,
+  notificationSoundMuted,
+  viewportSignal,
+  onToggleNotificationSound,
+  onBack,
+}: ChatPanelProps) {
   const {
     data,
     isLoading,
@@ -29,15 +39,20 @@ export function ChatPanel({ conversationId, conversation, onBack }: ChatPanelPro
   } = useConversationMessagesQuery(conversationId);
   const messages = flattenMessagePages(data?.pages);
   const [searchOpen, setSearchOpen] = useState(false);
+  const [scrollAnchorSignal, setScrollAnchorSignal] = useState(0);
   const subtitle = conversation
     ? conversation.unread > 0
       ? `${conversation.unread} mensagem${conversation.unread > 1 ? "s" : ""} não lida${conversation.unread > 1 ? "s" : ""}`
       : "Atendimento no WhatsApp"
     : "";
 
+  const requestScrollToBottom = useCallback(() => {
+    setScrollAnchorSignal((current) => current + 1);
+  }, []);
+
   return (
-    <div className="relative flex h-full w-full min-w-0 overflow-hidden">
-      <section className="chat-bg flex min-w-0 flex-1 flex-col">
+    <div className="relative flex h-full min-h-0 w-full min-w-0 overflow-hidden">
+      <section className="chat-bg flex min-h-0 min-w-0 flex-1 flex-col">
       <div className="flex h-[60px] shrink-0 items-center gap-3 bg-chat-header px-4">
         <Button
           variant="ghost"
@@ -68,6 +83,16 @@ export function ChatPanel({ conversationId, conversation, onBack }: ChatPanelPro
             </div>
             <div className="flex items-center gap-1">
               <HeaderIconButton
+                label={
+                  notificationSoundMuted
+                    ? "Ativar notificações"
+                    : "Silenciar notificações"
+                }
+                onClick={onToggleNotificationSound}
+              >
+                {notificationSoundMuted ? <VolumeOffIcon /> : <VolumeIcon />}
+              </HeaderIconButton>
+              <HeaderIconButton
                 label="Pesquisar na conversa"
                 onClick={() => setSearchOpen((open) => !open)}
               >
@@ -95,12 +120,17 @@ export function ChatPanel({ conversationId, conversation, onBack }: ChatPanelPro
         hasMore={hasNextPage}
         isFetchingMore={isFetchingNextPage}
         onLoadMore={() => fetchNextPage()}
+        viewportResizeSignal={viewportSignal}
+        anchorToBottomSignal={scrollAnchorSignal}
       />
 
       <MessageComposer
         conversationId={conversationId}
+        onComposerFocus={requestScrollToBottom}
+        onBottomLayoutChange={requestScrollToBottom}
         onMessageSent={async () => {
           await refetch();
+          requestScrollToBottom();
         }}
       />
       </section>
@@ -131,7 +161,7 @@ function HeaderIconButton({
       aria-label={label}
       title={label}
       onClick={onClick}
-      className="flex h-10 w-10 items-center justify-center rounded-full border-0 outline-none text-text-muted transition-colors hover:bg-surface-active hover:text-text focus:outline-none focus:ring-0"
+      className="flex h-10 w-10 cursor-pointer items-center justify-center rounded-full border-0 outline-none text-text-muted transition-colors hover:bg-surface-active hover:text-text focus:outline-none focus:ring-0"
     >
       {children}
     </button>
@@ -152,6 +182,24 @@ function HeaderSearchIcon() {
     <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden>
       <circle cx="11" cy="11" r="7" stroke="currentColor" strokeWidth="1.8" />
       <path d="m20 20-3.5-3.5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+function VolumeIcon() {
+  return (
+    <svg width="21" height="21" viewBox="0 0 24 24" fill="none" aria-hidden>
+      <path d="M11 5 6.5 9H3v6h3.5L11 19V5Z" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" />
+      <path d="M15 9a4 4 0 0 1 0 6M17.5 6.5a7.5 7.5 0 0 1 0 11" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+function VolumeOffIcon() {
+  return (
+    <svg width="21" height="21" viewBox="0 0 24 24" fill="none" aria-hidden>
+      <path d="M11 5 6.5 9H3v6h3.5L11 19V5Z" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" />
+      <path d="m15 10 5 5m0-5-5 5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
     </svg>
   );
 }

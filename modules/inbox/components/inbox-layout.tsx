@@ -7,6 +7,10 @@ import { NoConversationSelected } from "./no-conversation-selected";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useConversationsQuery } from "@/modules/inbox/hooks/use-conversations-query";
 import { useMarkConversationReadMutation } from "@/modules/inbox/hooks/use-mark-conversation-read-mutation";
+import { useInboxNotificationSound } from "@/modules/inbox/hooks/use-inbox-notification-sound";
+import { useNotificationSoundPreference } from "@/modules/inbox/hooks/use-notification-sound-preference";
+import { useMeQuery } from "@/modules/inbox/hooks/use-me-query";
+import { useMobileKeyboardViewport } from "@/modules/inbox/hooks/use-mobile-keyboard-viewport";
 import type { Conversation } from "@/modules/inbox/types/inbox.types";
 
 export function InboxLayout() {
@@ -19,9 +23,24 @@ export function InboxLayout() {
     refetch,
   } = useConversationsQuery();
   const markConversationRead = useMarkConversationReadMutation();
+  const { data: me } = useMeQuery();
+  const { viewportSignal } = useMobileKeyboardViewport();
+  const { muted, toggleMuted } = useNotificationSoundPreference();
   const readMarkersRef = useRef<Map<string, string>>(new Map());
   const readInFlightRef = useRef<Set<string>>(new Set());
   const conversations = data ?? [];
+  const { primeNotificationSound } = useInboxNotificationSound({
+    conversations,
+    ready: data !== undefined,
+    muted,
+    tenantId: me?.id ?? null,
+  });
+  const handleToggleMuted = useCallback(() => {
+    if (muted) {
+      primeNotificationSound();
+    }
+    toggleMuted();
+  }, [muted, primeNotificationSound, toggleMuted]);
   const selectedConversation = useMemo(
     () => conversations.find((conversation) => conversation.id === selectedId) ?? null,
     [conversations, selectedId]
@@ -114,6 +133,9 @@ export function InboxLayout() {
           <ChatPanel
             conversationId={selectedId}
             conversation={selectedConversation}
+            notificationSoundMuted={muted}
+            viewportSignal={viewportSignal}
+            onToggleNotificationSound={handleToggleMuted}
             onBack={() => setSelectedId(null)}
           />
         ) : (

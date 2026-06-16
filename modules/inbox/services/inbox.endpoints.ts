@@ -11,4 +11,5 @@ export const inboxEndpoints = {
   conversationMessages: (conversationId: string) =>
     `/conversations/${conversationId}/messages`,
   aiSuggest: "/ai/suggest",
+  aiUsage: "/ai/usage",
 } as const;

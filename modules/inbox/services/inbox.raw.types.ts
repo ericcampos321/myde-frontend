@@ -29,6 +29,8 @@ export interface RawConversation extends WithExtra {
   lastMessageDirection?: "inbound" | "outbound" | null;
   lastMessageStatus?: "pending" | "sent" | "delivered" | "read" | "failed" | null;
   lastMessageAt: string;
+  lastInboundMessageId?: string | null;
+  lastInboundMessageAt?: string | null;
 }
 
 export interface RawContact extends WithExtra {
@@ -99,4 +101,56 @@ export interface RawAiSuggestion extends WithExtra {
   riskLevel: string;
   riskReasons: string[];
   userMessage: string | null;
+}
+
+export interface RawAiUsageSummary extends WithExtra {
+  totalInteractions: number;
+  completedInteractions: number;
+  blockedInteractions: number;
+  promptTokens: number;
+  completionTokens: number;
+  totalTokens: number;
+  estimatedCost: number | null;
+  estimatedCostUsd?: number | null;
+  avgDurationMs: number | null;
+}
+
+export interface RawAiUsageByModel extends WithExtra {
+  model: string | null;
+  interactions: number;
+  totalTokens: number;
+  estimatedCost: number | null;
+  estimatedCostUsd?: number | null;
+}
+
+export interface RawAiUsageRecentItem extends WithExtra {
+  id?: string | null;
+  createdAt: string | null;
+  conversationId: string;
+  stage?: string | null;
+  model: string | null;
+  promptVersion?: string | null;
+  source: "openai" | "stub" | null;
+  provider?: string | null;
+  riskLevel: string;
+  blocked: boolean;
+  promptTokens?: number | null;
+  cachedPromptTokens?: number | null;
+  completionTokens?: number | null;
+  totalTokens: number | null;
+  estimatedCost?: number | null;
+  estimatedCostUsd?: number | null;
+  durationMs: number | null;
+}
+
+export interface RawAiUsageRecentPage extends WithExtra {
+  items: RawAiUsageRecentItem[];
+  nextCursor?: string | null;
+  hasNextPage?: boolean;
+}
+
+export interface RawAiUsagePage extends WithExtra {
+  summary: RawAiUsageSummary;
+  byModel: RawAiUsageByModel[];
+  recent: RawAiUsageRecentPage | RawAiUsageRecentItem[];
 }

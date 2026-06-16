@@ -18,6 +18,8 @@ import type { AiSuggestion, SentMessage } from "@/modules/inbox/types/inbox.type
 
 interface MessageComposerProps {
   conversationId: string;
+  onComposerFocus?: () => void;
+  onBottomLayoutChange?: () => void;
   onMessageSent?: () => Promise<void> | void;
 }
 
@@ -39,18 +41,30 @@ function prefersReducedMotion(): boolean {
   );
 }
 
-export function MessageComposer({ conversationId, onMessageSent }: MessageComposerProps) {
+export function MessageComposer({
+  conversationId,
+  onComposerFocus,
+  onBottomLayoutChange,
+  onMessageSent,
+}: MessageComposerProps) {
   const [text, setText] = useState("");
   const [messageState, setMessageState] = useState<MessageState>("idle");
   const [errorMessage, setErrorMessage] = useState("");
   const [suggestionMessage, setSuggestionMessage] = useState<string | null>(null);
   const [emojiOpen, setEmojiOpen] = useState(false);
-  // Montagem separada da intenção: mantém o popover no DOM durante a animação de
-  // saída e só desmonta no fim da transição (ou imediatamente em reduced-motion).
   const [emojiMounted, setEmojiMounted] = useState(false);
+  const composerRootRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
-  const emojiAreaRef = useRef<HTMLDivElement>(null);
+  const focusTimerRef = useRef<number | null>(null);
   const { data: me } = useMeQuery();
+
+  useEffect(() => {
+    return () => {
+      if (focusTimerRef.current !== null) {
+        window.clearTimeout(focusTimerRef.current);
+      }
+    };
+  }, []);
 
   // Auto-resize: zera a altura para medir o conteúdo real, aplica o clamp
   // [MIN, MAX] e liga o scroll interno só quando passa do máximo.
@@ -70,9 +84,24 @@ export function MessageComposer({ conversationId, onMessageSent }: MessageCompos
     return () => cancelAnimationFrame(id);
   }, [text, resizeTextarea]);
 
+  const scheduleScrollToBottom = useCallback(() => {
+    if (!onComposerFocus || typeof window === "undefined") {
+      return;
+    }
+
+    if (focusTimerRef.current !== null) {
+      window.clearTimeout(focusTimerRef.current);
+    }
+
+    focusTimerRef.current = window.setTimeout(() => {
+      onComposerFocus();
+    }, 180);
+  }, [onComposerFocus]);
+
   // Abre: monta e, no próximo frame, troca para o estado "aberto" (dispara a
   // transição de entrada). Em reduced-motion abre direto, sem animar.
   const openEmojiPicker = useCallback(() => {
+    textareaRef.current?.blur();
     setEmojiMounted(true);
     if (prefersReducedMotion()) {
       setEmojiOpen(true);
@@ -105,7 +134,7 @@ export function MessageComposer({ conversationId, onMessageSent }: MessageCompos
     if (!emojiOpen) return;
 
     function handlePointerDown(event: PointerEvent) {
-      if (!emojiAreaRef.current?.contains(event.target as Node)) {
+      if (!composerRootRef.current?.contains(event.target as Node)) {
         closeEmojiPicker();
       }
     }
@@ -121,11 +150,29 @@ export function MessageComposer({ conversationId, onMessageSent }: MessageCompos
     };
   }, [emojiOpen, closeEmojiPicker]);
 
+  useEffect(() => {
+    const textarea = textareaRef.current;
+    if (!textarea) {
+      return;
+    }
+
+    function handleNativeFocus() {
+      closeEmojiPicker();
+      scheduleScrollToBottom();
+    }
+
+    textarea.addEventListener("focus", handleNativeFocus);
+    return () => {
+      textarea.removeEventListener("focus", handleNativeFocus);
+    };
+  }, [closeEmojiPicker, scheduleScrollToBottom]);
+
   function insertEmoji(emoji: string) {
     const el = textareaRef.current;
     const { value, cursor } = insertEmojiAtSelection(text, el?.selectionStart, el?.selectionEnd, emoji);
 
     setText(value);
+    closeEmojiPicker();
     if (suggestionMessage) setSuggestionMessage(null);
     if (messageState !== "idle") setMessageState("idle");
 
@@ -152,6 +199,15 @@ export function MessageComposer({ conversationId, onMessageSent }: MessageCompos
     setMessageState("idle");
     setTimeout(() => textareaRef.current?.focus(), 0);
   }
+
+  useEffect(() => {
+    if (!emojiOpen) {
+      return;
+    }
+
+    scheduleScrollToBottom();
+    onBottomLayoutChange?.();
+  }, [emojiOpen, onBottomLayoutChange, scheduleScrollToBottom]);
 
   async function handleSend() {
     const trimmed = text.trim();
@@ -185,7 +241,10 @@ export function MessageComposer({ conversationId, onMessageSent }: MessageCompos
   const hasText = text.trim().length > 0;
 
   return (
-    <div className="shrink-0 bg-transparent pb-2 pt-1">
+    <div
+      ref={composerRootRef}
+      className="sticky bottom-0 z-10 shrink-0 bg-chat-header/95 pb-[calc(env(safe-area-inset-bottom,0px)+8px)] pt-1 backdrop-blur-[2px]"
+    >
       {messageState === "error" && (
         <p className="px-4 pt-1.5 text-[11px] text-danger" role="alert">
           {errorMessage || "Erro ao enviar mensagem."}
@@ -199,14 +258,14 @@ export function MessageComposer({ conversationId, onMessageSent }: MessageCompos
 
       <div className="flex min-h-[62px] items-end gap-1.5 px-3.5">
         <div className="flex min-w-0 flex-1 items-end gap-1 rounded-[22px] bg-chat-footer px-2 py-1.5">
-          <div ref={emojiAreaRef} className="relative shrink-0">
+          <div className="relative shrink-0">
             <FooterIconButton label="Emoji" compact active={emojiOpen} onClick={toggleEmojiPicker}>
               <EmojiIcon />
             </FooterIconButton>
 
             {emojiMounted && (
               <div
-                className="emoji-picker-popover-shell"
+                className="emoji-picker-popover-shell hidden sm:block"
                 data-state={emojiOpen ? "open" : "closed"}
                 onTransitionEnd={handleEmojiShellTransitionEnd}
               >
@@ -231,6 +290,7 @@ export function MessageComposer({ conversationId, onMessageSent }: MessageCompos
             className="block min-w-0 flex-1 resize-none overflow-hidden border-transparent bg-transparent px-2 py-[11px] text-[15px] leading-[20px] focus:border-transparent focus:ring-0"
             aria-label="Campo de mensagem"
             disabled={isSending}
+            onFocus={scheduleScrollToBottom}
           />
 
           <div className="flex shrink-0 items-center gap-2">
@@ -252,6 +312,18 @@ export function MessageComposer({ conversationId, onMessageSent }: MessageCompos
           </div>
         </div>
       </div>
+
+      {emojiOpen ? (
+        <div className="sm:hidden px-2 pt-2">
+          <div className="overflow-hidden rounded-t-[18px] border-t border-border bg-[#111b21] shadow-[0_-10px_32px_rgba(0,0,0,0.32)]">
+            <EmojiPickerPopover
+              onEmojiSelect={insertEmoji}
+              height={320}
+              className="w-full rounded-none border-0 shadow-none"
+            />
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }

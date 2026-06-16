@@ -19,10 +19,12 @@ interface MessageListProps {
   hasMore: boolean;
   isFetchingMore: boolean;
   onLoadMore: () => void;
+  viewportResizeSignal?: number;
+  anchorToBottomSignal?: number;
 }
 
 const messageListSurfaceClassName =
-  "relative isolate flex-1 overflow-y-auto px-4 py-2 sm:px-[8%]";
+  "relative isolate min-h-0 flex-1 overflow-y-auto px-4 py-2 sm:px-[8%]";
 
 const messageColumnClassName = "flex w-full flex-col";
 
@@ -37,6 +39,8 @@ export function MessageList({
   hasMore,
   isFetchingMore,
   onLoadMore,
+  viewportResizeSignal,
+  anchorToBottomSignal,
 }: MessageListProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
@@ -86,6 +90,26 @@ export function MessageList({
   useEffect(() => {
     handleScroll();
   }, []);
+
+  useEffect(() => {
+    if (!anchorToBottomSignal || !bottomRef.current) {
+      return;
+    }
+
+    requestAnimationFrame(() => {
+      bottomRef.current?.scrollIntoView({ behavior: "instant" });
+    });
+  }, [anchorToBottomSignal]);
+
+  useEffect(() => {
+    if (!viewportResizeSignal || !nearBottomRef.current || !bottomRef.current) {
+      return;
+    }
+
+    requestAnimationFrame(() => {
+      bottomRef.current?.scrollIntoView({ behavior: "instant" });
+    });
+  }, [viewportResizeSignal]);
 
   if (isLoading) return <MessageListSkeleton />;
 

@@ -1,6 +1,8 @@
 @import "tailwindcss";
 
 :root {
+  --app-viewport-height: 100dvh;
+  --keyboard-offset: 0px;
   --bg: #0b141a;
   --surface: #161717;
   --surface-raised: #202c33;
@@ -22,6 +24,8 @@
   --text-muted: #8696a0;
   --danger: #f15c6d;
   --danger-muted: #5c1f27;
+  --success: #00a884;
+  --warning: #e8a33d;
   --text-meta: rgba(233, 237, 239, 0.6);
   --scroll-thumb: #374045;
   --divider-strong: rgba(255, 255, 255, 0.08);
@@ -46,6 +50,8 @@
   --color-text-muted: var(--text-muted);
   --color-danger: var(--danger);
   --color-danger-muted: var(--danger-muted);
+  --color-success: var(--success);
+  --color-warning: var(--warning);
 }
 
 * {

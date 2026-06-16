@@ -18,6 +18,8 @@ import type {
   RawAiSuggestion,
   RawContact,
   RawConversation,
+  RawAiUsagePage,
+  RawAiUsageRecentItem,
   RawMessage,
   RawMessagePage,
   RawMessageSearchPage,
@@ -30,6 +32,8 @@ import type {
   AiSuggestion,
   AiSuggestionRiskLevel,
   AiSuggestionRiskReason,
+  AiUsagePage,
+  AiUsageRecentItem,
   Contact,
   Conversation,
   Message,
@@ -153,6 +157,7 @@ const CONVERSATION_PREVIEW_STATUSES = ["pending", "sent", "delivered", "read", "
 const RECENT_TARGET_TYPES = ["conversation", "contact"] as const;
 const AI_SOURCES = ["openai", "stub"] as const;
 const AI_RISK_LEVELS = ["low", "medium", "high"] as const;
+const AI_USAGE_STAGES = ["input", "output", "recurring", "auto_reply"] as const;
 const AI_RISK_REASONS = [
   "prompt_injection",
   "secret_extraction",
@@ -192,6 +197,8 @@ export function sanitizeConversation(raw: RawConversation): Conversation {
         ? null
         : sanitizeEnum(raw.lastMessageStatus, CONVERSATION_PREVIEW_STATUSES, "sent"),
     lastMessageAt: sanitizeIsoDate(raw.lastMessageAt),
+    lastInboundMessageId: sanitizeIdOrNull(raw.lastInboundMessageId),
+    lastInboundMessageAt: sanitizeIsoDate(raw.lastInboundMessageAt),
   };
 }
 
@@ -334,4 +341,96 @@ function sanitizeRiskReasons(value: unknown): AiSuggestionRiskReason[] {
     );
 
   return [...new Set(normalized)];
+}
+
+/** Número finito ou null (coage; null/undefined/inválido viram null). */
+function sanitizeNumberOrNull(value: unknown): number | null {
+  if (value === null || value === undefined || value === "") return null;
+  const n = typeof value === "number" ? value : Number(value);
+  return Number.isFinite(n) ? n : null;
+}
+
+function sanitizeAiUsageRecentItem(
+  raw: RawAiUsageRecentItem
+): AiUsageRecentItem {
+  const estimatedCost = sanitizeNumberOrNull(
+    raw.estimatedCostUsd ?? raw.estimatedCost
+  );
+  return {
+    id: sanitizeId(raw.id),
+    createdAt: sanitizeIsoDate(raw.createdAt),
+    conversationId: sanitizeId(raw.conversationId),
+    stage: sanitizeEnum<
+      "input" | "output" | "recurring" | "auto_reply"
+    >(raw.stage, AI_USAGE_STAGES, "input"),
+    model: sanitizeTextOrNull(raw.model),
+    source:
+      raw.source == null
+        ? null
+        : sanitizeEnum<"openai" | "stub">(raw.source, AI_SOURCES, "stub"),
+    provider: sanitizeTextOrNull(raw.provider),
+    riskLevel: sanitizeEnum<AiSuggestionRiskLevel>(
+      raw.riskLevel,
+      AI_RISK_LEVELS,
+      "low"
+    ),
+    blocked: sanitizeBoolean(raw.blocked),
+    promptTokens: sanitizeNumberOrNull(raw.promptTokens),
+    cachedPromptTokens: sanitizeNumberOrNull(raw.cachedPromptTokens),
+    completionTokens: sanitizeNumberOrNull(raw.completionTokens),
+    totalTokens: sanitizeNumberOrNull(raw.totalTokens),
+    estimatedCost,
+    estimatedCostUsd: estimatedCost,
+    durationMs: sanitizeNumberOrNull(raw.durationMs),
+  };
+}
+
+/**
+ * Sanitiza o painel de uso da IA. Só métricas/metadados seguros — nunca há
+ * prompt/mensagem/token de API no contrato; campos extras do backend são descartados.
+ */
+export function sanitizeAiUsagePage(raw: RawAiUsagePage): AiUsagePage {
+  const summary = raw.summary ?? ({} as RawAiUsagePage["summary"]);
+  const recentRaw = Array.isArray(raw.recent)
+    ? {
+        items: raw.recent,
+        nextCursor: null,
+        hasNextPage: false,
+      }
+    : raw.recent ?? { items: [], nextCursor: null, hasNextPage: false };
+  const summaryEstimatedCost = sanitizeNumberOrNull(
+    summary.estimatedCostUsd ?? summary.estimatedCost
+  );
+  return {
+    summary: {
+      totalInteractions: sanitizeCount(summary.totalInteractions),
+      completedInteractions: sanitizeCount(summary.completedInteractions),
+      blockedInteractions: sanitizeCount(summary.blockedInteractions),
+      promptTokens: sanitizeCount(summary.promptTokens),
+      completionTokens: sanitizeCount(summary.completionTokens),
+      totalTokens: sanitizeCount(summary.totalTokens),
+      estimatedCost: summaryEstimatedCost,
+      estimatedCostUsd: summaryEstimatedCost,
+      avgDurationMs: sanitizeNumberOrNull(summary.avgDurationMs),
+    },
+    byModel: (Array.isArray(raw.byModel) ? raw.byModel : []).map((m) => {
+      const estimatedCost = sanitizeNumberOrNull(
+        m.estimatedCostUsd ?? m.estimatedCost
+      );
+      return {
+        model: sanitizeTextOrNull(m.model),
+        interactions: sanitizeCount(m.interactions),
+        totalTokens: sanitizeCount(m.totalTokens),
+        estimatedCost,
+        estimatedCostUsd: estimatedCost,
+      };
+    }),
+    recent: {
+      items: (Array.isArray(recentRaw.items) ? recentRaw.items : []).map(
+        sanitizeAiUsageRecentItem
+      ),
+      nextCursor: sanitizeTextOrNull(recentRaw.nextCursor),
+      hasNextPage: sanitizeBoolean(recentRaw.hasNextPage),
+    },
+  };
 }

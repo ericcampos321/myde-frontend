@@ -8,6 +8,12 @@ import { ContactList } from "./contact-list";
 import { RecentSearchesPanel } from "./recent-searches-panel";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ErrorState } from "@/components/ui/error-state";
+import {
+  AppRail,
+  AiUsageIcon,
+  ChatIcon,
+  ContactsIcon,
+} from "@/components/shared/app-rail";
 import { useRecentSearchesQuery } from "@/modules/inbox/hooks/use-recent-searches-query";
 import { useSaveRecentSearchMutation } from "@/modules/inbox/hooks/use-save-recent-search-mutation";
 import { useClearRecentSearchesMutation } from "@/modules/inbox/hooks/use-clear-recent-searches-mutation";
@@ -133,7 +139,7 @@ export function ConversationList({ conversations, isLoading, isFetching, isError
               <div className="flex h-[61px] items-center justify-between bg-sidebar pl-5 pr-4">
                 <div className="flex min-w-0 items-center">
                   <Image
-                    src="/brand/background-plan.png"
+                    src="/brand/logo-plan.png"
                     alt="Myde Inbox"
                     width={172}
                     height={34}
@@ -327,70 +333,32 @@ function InboxRail({
   unreadCount: number;
 }) {
   return (
-    <nav
-      className="hidden h-full w-12 min-w-14 shrink-0 flex-col items-center border-r border-border bg-sidebar-rail shadow-[1px_0_0_0_var(--divider-strong)] py-0 sm:flex"
-      aria-label="Atalhos visuais do inbox"
-    >
-      <div className="flex w-full flex-1 flex-col items-center">
-        <RailButton
-          label="Conversas"
-          active={activeSection === "conversations"}
-          onClick={() => onSectionChange("conversations")}
-          badgeCount={unreadCount}
-        >
-          <ChatIcon />
-        </RailButton>
-        <RailButton label="Contatos" active={activeSection === "contacts"} onClick={() => onSectionChange("contacts")}>
-          <ContactsIcon />
-        </RailButton>
-      </div>
-
-      <div className="mt-auto flex flex-col items-center pb-1">
-        <span className="flex h-[34px] w-[34px] items-center justify-center rounded-full bg-surface-active text-[13px] font-semibold text-text">
-          M
-        </span>
-      </div>
-    </nav>
-  );
-}
-
-function RailButton({
-  label,
-  active = false,
-  onClick,
-  badgeCount = 0,
-  children,
-}: {
-  label: string;
-  active?: boolean;
-  onClick?: () => void;
-  badgeCount?: number;
-  children: React.ReactNode;
-}) {
-  return (
-    <button
-      type="button"
-      aria-label={label}
-      onClick={onClick}
-      className={[
-        "relative flex h-12 w-14 cursor-pointer items-center justify-center transition-colors duration-150",
-        active ? "text-text" : "text-text-muted hover:text-text",
-      ].join(" ")}
-    >
-      {badgeCount > 0 && (
-        <span className="absolute right-[7px] top-[5px] inline-flex h-[8px] w-[8px] items-center justify-center rounded-full bg-accent text-[0px] leading-none text-transparent">
-          {badgeCount > 99 ? "99+" : badgeCount}
-        </span>
-      )}
-      <span
-        className={[
-          "flex h-[34px] w-[34px] items-center justify-center rounded-full transition-colors duration-150",
-          active ? "bg-white/10 text-text" : "bg-transparent text-inherit hover:bg-white/8",
-        ].join(" ")}
-      >
-        {children}
-      </span>
-    </button>
+    <AppRail
+      ariaLabel="Navegação principal"
+      items={[
+        {
+          id: "conversations",
+          label: "Conversas",
+          icon: <ChatIcon />,
+          active: activeSection === "conversations",
+          onClick: () => onSectionChange("conversations"),
+          badgeCount: unreadCount,
+        },
+        {
+          id: "contacts",
+          label: "Contatos",
+          icon: <ContactsIcon />,
+          active: activeSection === "contacts",
+          onClick: () => onSectionChange("contacts"),
+        },
+        {
+          id: "ai-usage",
+          label: "Uso da IA",
+          icon: <AiUsageIcon />,
+          href: "/ai-usage",
+        },
+      ]}
+    />
   );
 }
 
@@ -418,33 +386,6 @@ function InboxIcon() {
   return (
     <IconBase size={20}>
       <path d="M6 7h12v10H6zM9 10h6M9 13h4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
-    </IconBase>
-  );
-}
-
-function ChatIcon() {
-  return (
-    <IconBase size={22}>
-      <path
-        d="M20 15a3 3 0 0 1-3 3H8l-4 3v-6a3 3 0 0 1-1-2V7a3 3 0 0 1 3-3h11a3 3 0 0 1 3 3z"
-        stroke="currentColor"
-        strokeWidth="1.8"
-        strokeLinejoin="round"
-      />
-    </IconBase>
-  );
-}
-
-function ContactsIcon() {
-  return (
-    <IconBase size={22}>
-      <circle cx="9" cy="8" r="3" stroke="currentColor" strokeWidth="1.8" />
-      <path
-        d="M3.5 19c.4-4 2.2-6 5.5-6s5.1 2 5.5 6M16 5.5a3 3 0 0 1 0 5.8M17 13c2.2.6 3.4 2.5 3.5 5"
-        stroke="currentColor"
-        strokeWidth="1.8"
-        strokeLinecap="round"
-      />
     </IconBase>
   );
 }

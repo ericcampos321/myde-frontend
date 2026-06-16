@@ -5,6 +5,7 @@ import { inboxEndpoints } from "@/modules/inbox/services/inbox.endpoints";
 import type {
   RawAgent,
   RawAiSuggestion,
+  RawAiUsagePage,
   RawContact,
   RawConversation,
   RawMessagePage,
@@ -132,4 +133,38 @@ export function sendMessage(
     { text },
     { headers: ctx.headers }
   );
+}
+
+export function getAiUsage(
+  params: {
+    from?: string;
+    to?: string;
+    conversationId?: string;
+    limit?: string;
+    cursor?: string;
+    model?: string;
+    source?: string;
+    provider?: string;
+    riskLevel?: string;
+    blocked?: string;
+    stage?: string;
+  } = {},
+  ctx: RequestContext = {}
+): Promise<RawAiUsagePage> {
+  const query = new URLSearchParams();
+  if (params.from) query.set("from", params.from);
+  if (params.to) query.set("to", params.to);
+  if (params.conversationId) query.set("conversationId", params.conversationId);
+  if (params.limit) query.set("limit", params.limit);
+  if (params.cursor) query.set("cursor", params.cursor);
+  if (params.model) query.set("model", params.model);
+  if (params.source) query.set("source", params.source);
+  if (params.provider) query.set("provider", params.provider);
+  if (params.riskLevel) query.set("riskLevel", params.riskLevel);
+  if (params.blocked) query.set("blocked", params.blocked);
+  if (params.stage) query.set("stage", params.stage);
+  const qs = query.toString();
+  const path = qs ? `${inboxEndpoints.aiUsage}?${qs}` : inboxEndpoints.aiUsage;
+
+  return backendClient.get<RawAiUsagePage>(path, { headers: ctx.headers });
 }

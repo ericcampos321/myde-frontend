@@ -2,10 +2,13 @@
 
 import { type CSSProperties } from "react";
 import EmojiPicker, { Categories, Theme, type EmojiClickData } from "emoji-picker-react";
+import { cn } from "@/utils/cn";
 
 interface EmojiPickerPopoverProps {
   /** Recebe apenas a string do emoji (nunca o payload bruto). */
   onEmojiSelect: (emoji: string) => void;
+  className?: string;
+  height?: number;
 }
 
 // Nomes das categorias em pt-BR (a lib usa inglês por padrão).
@@ -59,12 +62,19 @@ const pickerVars: CSSProperties = {
  * raiz, usado pelo composer para detectar clique-fora. Não renderiza HTML cru —
  * só repassa `emojiData.emoji`.
  */
-export function EmojiPickerPopover({ onEmojiSelect }: EmojiPickerPopoverProps) {
+export function EmojiPickerPopover({
+  onEmojiSelect,
+  className,
+  height = 480,
+}: EmojiPickerPopoverProps) {
   return (
     <div
       role="dialog"
       aria-label="Selecionar emoji"
-      className="overflow-hidden rounded-lg border border-[#222e35] bg-[#111b21] shadow-[0_8px_24px_rgba(0,0,0,0.4)]"
+      className={cn(
+        "overflow-hidden rounded-lg border border-[#222e35] bg-[#111b21] shadow-[0_8px_24px_rgba(0,0,0,0.4)]",
+        className
+      )}
       style={{ width: "min(470px, calc(100vw - 24px))" }}
     >
       <EmojiPicker
@@ -72,7 +82,7 @@ export function EmojiPickerPopover({ onEmojiSelect }: EmojiPickerPopoverProps) {
         categories={PT_BR_CATEGORIES}
         searchPlaceholder="Pesquisar emoji"
         width="100%"
-        height={480}
+        height={height}
         lazyLoadEmojis
         previewConfig={{ showPreview: false }}
         style={pickerVars}

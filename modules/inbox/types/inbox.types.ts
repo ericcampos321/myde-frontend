@@ -8,6 +8,8 @@ export interface Conversation {
   lastMessageDirection: "inbound" | "outbound" | null;
   lastMessageStatus: "pending" | "sent" | "delivered" | "read" | "failed" | null;
   lastMessageAt: string | null;
+  lastInboundMessageId: string | null;
+  lastInboundMessageAt: string | null;
 }
 
 export interface Contact {
@@ -114,4 +116,59 @@ export interface AiSuggestion {
 
 export interface AiSuggestPayload {
   conversationId: string;
+}
+
+// ---------------------------------------------------------------------------
+// Painel de Uso da IA (read-only) — métricas seguras (sem prompt/mensagem/token)
+// ---------------------------------------------------------------------------
+
+export interface AiUsageSummary {
+  totalInteractions: number;
+  completedInteractions: number;
+  blockedInteractions: number;
+  promptTokens: number;
+  completionTokens: number;
+  totalTokens: number;
+  estimatedCost: number | null;
+  estimatedCostUsd: number | null;
+  avgDurationMs: number | null;
+}
+
+export interface AiUsageByModel {
+  model: string | null;
+  interactions: number;
+  totalTokens: number;
+  estimatedCost: number | null;
+  estimatedCostUsd: number | null;
+}
+
+export interface AiUsageRecentItem {
+  id: string;
+  createdAt: string | null;
+  conversationId: string;
+  stage: "input" | "output" | "recurring" | "auto_reply";
+  model: string | null;
+  source: AiSuggestionSource | null;
+  provider: string | null;
+  riskLevel: AiSuggestionRiskLevel;
+  blocked: boolean;
+  promptTokens: number | null;
+  cachedPromptTokens: number | null;
+  completionTokens: number | null;
+  totalTokens: number | null;
+  estimatedCost: number | null;
+  estimatedCostUsd: number | null;
+  durationMs: number | null;
+}
+
+export interface AiUsageRecentPage {
+  items: AiUsageRecentItem[];
+  nextCursor: string | null;
+  hasNextPage: boolean;
+}
+
+export interface AiUsagePage {
+  summary: AiUsageSummary;
+  byModel: AiUsageByModel[];
+  recent: AiUsageRecentPage;
 }
