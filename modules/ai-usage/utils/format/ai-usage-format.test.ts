@@ -4,7 +4,7 @@ import {
   formatDurationMs,
   formatInteger,
   formatTokens,
-} from "@/modules/ai-usage/utils/ai-usage-format";
+} from "@/modules/ai-usage/utils/format/ai-usage-format";
 
 describe("formatTokens / formatInteger", () => {
   it("formata inteiros e trata null como —", () => {

@@ -1,3 +1,5 @@
+import type { AiUsageRecentItem } from "@/modules/ai-usage/types/ai-usage.types";
+
 const DASH = "—";
 
 const integerFormatter = new Intl.NumberFormat("pt-BR");
@@ -43,4 +45,23 @@ export function formatDateTime(iso: string | null | undefined): string {
     hour: "2-digit",
     minute: "2-digit",
   });
+}
+
+/** Rótulo legível do estágio do fluxo de IA. */
+export function formatStage(stage: AiUsageRecentItem["stage"]): string {
+  const labels: Record<AiUsageRecentItem["stage"], string> = {
+    input: "Entrada",
+    output: "Saída",
+    recurring: "Recorrência",
+    auto_reply: "Auto-reply",
+  };
+  return labels[stage] ?? stage;
+}
+
+/** Origem legível (source/provider) de uma interação. */
+export function formatOrigin(item: AiUsageRecentItem): string {
+  if (item.provider && item.source && item.provider !== item.source) {
+    return `${item.source}/${item.provider}`;
+  }
+  return item.source ?? item.provider ?? "—";
 }

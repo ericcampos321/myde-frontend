@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   AI_USAGE_PERIODS,
   resolvePeriodRange,
-} from "@/modules/ai-usage/utils/ai-usage-period";
+} from "@/modules/ai-usage/utils/period/ai-usage-period";
 
 const now = new Date("2026-06-14T12:00:00.000Z");
 const DAY = 24 * 60 * 60 * 1000;

@@ -1,4 +1,4 @@
-import { AiUsagePage } from "@/modules/ai-usage/components/ai-usage-page";
+import { AiUsagePage } from "@/modules/ai-usage/components/page/ai-usage-page";
 
 export const metadata = {
   title: "Uso da IA — Myde Inbox",

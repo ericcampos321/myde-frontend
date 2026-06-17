@@ -3,7 +3,7 @@ import {
   countActiveAiUsageFilters,
   EMPTY_AI_USAGE_FILTERS,
   hasActiveAiUsageFilters,
-} from "@/modules/ai-usage/utils/ai-usage-filters";
+} from "@/modules/ai-usage/utils/filters/ai-usage-filter-utils";
 
 describe("ai usage filters", () => {
   it("não considera filtros vazios como ativos", () => {

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildAiUsageQueryParams } from "@/modules/ai-usage/utils/ai-usage-query-params";
+import { buildAiUsageQueryParams } from "@/modules/ai-usage/utils/filters/ai-usage-query-params";
 
 describe("buildAiUsageQueryParams", () => {
   it("inclui filtros seguros e cursor", () => {

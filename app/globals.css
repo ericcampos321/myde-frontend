@@ -15,8 +15,8 @@
   --chat-header: var(--surface);
   --chat-footer: var(--surface-raised);
   --chat-input: var(--surface-active);
-  --bubble-in: #202c33;
-  --bubble-out: #2F4F4F;
+  --bubble-in: #0751bf;
+  --bubble-out: #2a3942;
   --accent-gradient: linear-gradient(160deg, var(--accent-hover), var(--accent));
   --accent-avatar-gradient: linear-gradient(145deg, var(--accent), #045c4a);
   --accent-shadow: rgba(0, 168, 132, 0.24);
