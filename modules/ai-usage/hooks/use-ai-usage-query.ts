@@ -1,4 +1,4 @@
-import { useQuery } from "@tanstack/react-query";
+import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { apiClient } from "@/services/http/api-client";
 import { buildAiUsageQueryParams } from "@/modules/ai-usage/utils/ai-usage-query-params";
 import type { AiUsagePage } from "@/modules/inbox/types/inbox.types";
@@ -25,5 +25,9 @@ export function useAiUsageQuery(params: {
         query,
       }),
     staleTime: 15_000,
+    // Mantém a página anterior visível enquanto busca a próxima (paginação desktop
+    // e "Carregar mais" no mobile): evita o skeleton de página inteira a cada troca
+    // de cursor e permite acumular itens no mobile sem perder a lista.
+    placeholderData: keepPreviousData,
   });
 }

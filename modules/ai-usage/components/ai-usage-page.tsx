@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { useIsMobileViewport } from "@/modules/inbox/hooks/use-is-mobile-viewport";
 import { AppRail, AiUsageIcon, ChatIcon, ContactsIcon } from "@/components/shared/app-rail";
 import { Card } from "@/components/ui/card";
 import { Select } from "@/components/ui/select";
@@ -33,22 +34,67 @@ export function AiUsagePage() {
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
   const [mobileDraftFilters, setMobileDraftFilters] = useState<AiUsageFilters>(EMPTY_AI_USAGE_FILTERS);
   const [cursorStack, setCursorStack] = useState<string[]>([]);
+  const isMobile = useIsMobileViewport();
+  // Mobile: lista acumulada (append em "Carregar mais") + cursor da página atual.
+  const [mobileItems, setMobileItems] = useState<AiUsageRecentItem[]>([]);
+  const [mobileCursor, setMobileCursor] = useState<string | null>(null);
   // Recalcula o range só quando o período muda (evita refetch a cada render).
   const range = useMemo(() => resolvePeriodRange(period), [period]);
   const filterKey = useMemo(() => JSON.stringify(filters), [filters]);
-  const currentCursor = cursorStack.at(-1) ?? null;
+  // Mobile usa limite menor (10) e cursor próprio (avança ao "Carregar mais");
+  // desktop mantém a paginação por cursorStack (Anterior/Próxima) com PAGE_LIMIT.
+  const limit = isMobile ? "10" : PAGE_LIMIT;
+  const currentCursor = isMobile ? mobileCursor : cursorStack.at(-1) ?? null;
+  // Identidade da consulta mobile: qualquer mudança (período/filtro/viewport)
+  // reinicia a lista acumulada e o cursor.
+  const mobileResetKey = `${range.from}|${range.to}|${filterKey}|${isMobile}`;
+  const mobileResetKeyRef = useRef<string>("");
 
   useEffect(() => {
     setCursorStack([]);
   }, [period, filterKey]);
 
-  const { data, isLoading, isError, refetch, isFetching } = useAiUsageQuery({
-    from: range.from,
-    to: range.to,
-    limit: PAGE_LIMIT,
-    cursor: currentCursor,
-    ...filters,
-  });
+  // Reinicia o cursor mobile ao trocar período/filtro/viewport (volta à 1ª página).
+  useEffect(() => {
+    setMobileCursor(null);
+  }, [mobileResetKey]);
+
+  const { data, isLoading, isError, refetch, isFetching, isPlaceholderData } =
+    useAiUsageQuery({
+      from: range.from,
+      to: range.to,
+      limit,
+      cursor: currentCursor,
+      ...filters,
+    });
+
+  // Acumula as páginas mobile (append). Em troca de período/filtro (resetKey novo)
+  // substitui pela 1ª página; nas demais, anexa sem duplicar (dedupe por id).
+  // Ignora dados placeholder (keepPreviousData) para não misturar itens stale.
+  useEffect(() => {
+    if (!isMobile || isPlaceholderData) {
+      return;
+    }
+    const items = data?.recent.items;
+    if (!items) {
+      return;
+    }
+
+    setMobileItems((prev) => {
+      if (mobileResetKeyRef.current !== mobileResetKey) {
+        mobileResetKeyRef.current = mobileResetKey;
+        return items;
+      }
+      return mergeRecentById(prev, items);
+    });
+  }, [isMobile, isPlaceholderData, data, mobileResetKey]);
+
+  // Itens exibidos no mobile: a lista acumulada. Fallback para a página atual no
+  // 1º frame (antes do efeito rodar), exceto quando os dados são placeholder.
+  const mobileDisplayItems =
+    mobileItems.length > 0 || isPlaceholderData
+      ? mobileItems
+      : data?.recent.items ?? [];
 
   const summary = data?.summary;
   const hasActiveFilters = hasActiveAiUsageFilters(filters);
@@ -133,8 +179,18 @@ export function AiUsagePage() {
       <div className="min-w-0 flex-1 overflow-y-auto">
         <div className="mx-auto flex w-full max-w-7xl flex-col gap-5 px-4 py-5 sm:gap-6 sm:px-6 sm:py-6">
           <header className="flex flex-col gap-2">
-            <Link href="/" className="w-fit text-[13px] text-text-muted hover:text-text">
-              ← Voltar para o inbox
+            <Link
+              href="/"
+              aria-label="Voltar para o inbox"
+              className={cn(
+                "inline-flex h-10 w-fit items-center gap-2 rounded-full border border-border bg-surface-raised/60 px-3.5 text-[13px] font-medium text-text-muted",
+                "transition hover:bg-surface-active hover:text-text active:scale-[0.98]",
+                "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+              )}
+            >
+              <BackArrowIcon />
+              <span className="sm:hidden">Inbox</span>
+              <span className="hidden sm:inline">Voltar para o inbox</span>
             </Link>
             <h1 className="text-[22px] font-semibold text-text">Uso da IA</h1>
             <p className="text-[13px] text-text-muted">
@@ -232,37 +288,30 @@ export function AiUsagePage() {
                       }
                     />
                   </Card>
+                ) : isMobile ? (
+                  <RecentCards
+                    items={mobileDisplayItems}
+                    hasNextPage={data.recent.hasNextPage}
+                    isLoadingMore={isFetching}
+                    onLoadMore={() => {
+                      if (data.recent.nextCursor) {
+                        setMobileCursor(data.recent.nextCursor);
+                      }
+                    }}
+                  />
                 ) : (
-                  <>
-                    <div className="sm:hidden">
-                      <RecentCards
-                        items={data.recent.items}
-                        hasNextPage={data.recent.hasNextPage}
-                        pageIndex={cursorStack.length}
-                        isFetching={isFetching}
-                        onPrevious={() => setCursorStack((stack) => stack.slice(0, -1))}
-                        onNext={() => {
-                          if (data.recent.nextCursor) {
-                            setCursorStack((stack) => [...stack, data.recent.nextCursor!]);
-                          }
-                        }}
-                      />
-                    </div>
-                    <div className="hidden sm:block">
-                      <RecentTable
-                        items={data.recent.items}
-                        hasNextPage={data.recent.hasNextPage}
-                        pageIndex={cursorStack.length}
-                        isFetching={isFetching}
-                        onPrevious={() => setCursorStack((stack) => stack.slice(0, -1))}
-                        onNext={() => {
-                          if (data.recent.nextCursor) {
-                            setCursorStack((stack) => [...stack, data.recent.nextCursor!]);
-                          }
-                        }}
-                      />
-                    </div>
-                  </>
+                  <RecentTable
+                    items={data.recent.items}
+                    hasNextPage={data.recent.hasNextPage}
+                    pageIndex={cursorStack.length}
+                    isFetching={isFetching}
+                    onPrevious={() => setCursorStack((stack) => stack.slice(0, -1))}
+                    onNext={() => {
+                      if (data.recent.nextCursor) {
+                        setCursorStack((stack) => [...stack, data.recent.nextCursor!]);
+                      }
+                    }}
+                  />
                 )}
               </>
             )
@@ -528,20 +577,26 @@ function RecentTable({
   );
 }
 
+/** Anexa `incoming` a `prev` sem duplicar (dedupe por id), preservando a ordem. */
+function mergeRecentById(
+  prev: AiUsageRecentItem[],
+  incoming: AiUsageRecentItem[]
+): AiUsageRecentItem[] {
+  const seen = new Set(prev.map((item) => item.id));
+  const appended = incoming.filter((item) => !seen.has(item.id));
+  return appended.length > 0 ? [...prev, ...appended] : prev;
+}
+
 function RecentCards({
   items,
   hasNextPage,
-  pageIndex,
-  isFetching,
-  onPrevious,
-  onNext,
+  isLoadingMore,
+  onLoadMore,
 }: {
   items: AiUsageRecentItem[];
   hasNextPage: boolean;
-  pageIndex: number;
-  isFetching: boolean;
-  onPrevious: () => void;
-  onNext: () => void;
+  isLoadingMore: boolean;
+  onLoadMore: () => void;
 }) {
   if (items.length === 0) {
     return (
@@ -554,31 +609,9 @@ function RecentCards({
   return (
     <div className="flex flex-col gap-3">
       <Card className="p-4">
-        <div className="flex flex-col gap-3">
-          <div>
-            <h2 className="text-[14px] font-semibold text-text">Interações recentes</h2>
-            <p className="text-[12px] text-text-muted">
-              Página {pageIndex + 1} · {items.length} carregadas
-            </p>
-          </div>
-          <div className="grid grid-cols-2 gap-2">
-            <button
-              type="button"
-              disabled={pageIndex === 0 || isFetching}
-              onClick={onPrevious}
-              className="cursor-pointer rounded-xl border border-border px-4 py-2.5 text-[13px] font-medium text-text-muted transition-colors hover:bg-surface-active hover:text-text disabled:cursor-not-allowed disabled:opacity-40"
-            >
-              Anterior
-            </button>
-            <button
-              type="button"
-              disabled={!hasNextPage || isFetching}
-              onClick={onNext}
-              className="cursor-pointer rounded-xl border border-border px-4 py-2.5 text-[13px] font-medium text-text-muted transition-colors hover:bg-surface-active hover:text-text disabled:cursor-not-allowed disabled:opacity-40"
-            >
-              Próxima
-            </button>
-          </div>
+        <div>
+          <h2 className="text-[14px] font-semibold text-text">Interações recentes</h2>
+          <p className="text-[12px] text-text-muted">{items.length} carregadas</p>
         </div>
       </Card>
 
@@ -614,6 +647,27 @@ function RecentCards({
           </div>
         </Card>
       ))}
+
+      {hasNextPage ? (
+        <button
+          type="button"
+          onClick={onLoadMore}
+          disabled={isLoadingMore}
+          aria-busy={isLoadingMore}
+          className={cn(
+            "flex h-11 w-full items-center justify-center rounded-xl border border-border bg-surface px-4 text-[14px] font-medium text-text-muted",
+            "transition-colors hover:bg-surface-active hover:text-text active:scale-[0.99]",
+            "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent",
+            "disabled:cursor-not-allowed disabled:opacity-50"
+          )}
+        >
+          {isLoadingMore ? "Carregando…" : "Carregar mais"}
+        </button>
+      ) : (
+        <p className="py-2 text-center text-[12px] text-text-muted">
+          Todos os registros carregados
+        </p>
+      )}
     </div>
   );
 }
@@ -797,6 +851,21 @@ function CloseIcon() {
   return (
     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden>
       <path d="m6 6 12 12M18 6 6 18" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+function BackArrowIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden>
+      <path d="M19 12H5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+      <path
+        d="M12 19l-7-7 7-7"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
     </svg>
   );
 }
