@@ -16,6 +16,7 @@ export function useMobileKeyboardViewport() {
 
     let lastHeight = -1;
     let lastOffset = -1;
+    const preferLayoutViewport = /Android/i.test(window.navigator.userAgent);
 
     const applyViewportMetrics = () => {
       const fallbackHeight = window.innerHeight;
@@ -24,6 +25,7 @@ export function useMobileKeyboardViewport() {
         fallbackHeight,
         viewportHeight: viewport?.height ?? fallbackHeight,
         viewportOffsetTop: viewport?.offsetTop ?? 0,
+        preferLayoutViewport,
       });
 
       document.documentElement.style.setProperty(

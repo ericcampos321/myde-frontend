@@ -2,6 +2,7 @@ export interface MobileViewportMetricsInput {
   viewportHeight: number;
   viewportOffsetTop?: number;
   fallbackHeight: number;
+  preferLayoutViewport?: boolean;
 }
 
 export interface MobileViewportMetrics {
@@ -21,9 +22,12 @@ export function resolveMobileViewportMetrics(
   const viewportOffsetTop = Number.isFinite(input.viewportOffsetTop)
     ? Math.max(0, Math.round(input.viewportOffsetTop ?? 0))
     : 0;
+  const layoutViewportHeight = Math.max(fallbackHeight - viewportOffsetTop, 0);
 
   return {
-    appViewportHeight: viewportHeight,
+    appViewportHeight: input.preferLayoutViewport
+      ? Math.max(viewportHeight, layoutViewportHeight)
+      : viewportHeight,
     keyboardOffset: Math.max(
       fallbackHeight - viewportHeight - viewportOffsetTop,
       0

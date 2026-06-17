@@ -40,4 +40,18 @@ describe("resolveMobileViewportMetrics", () => {
       keyboardOffset: 0,
     });
   });
+
+  it("can prefer the layout viewport when Android visualViewport is too short", () => {
+    expect(
+      resolveMobileViewportMetrics({
+        fallbackHeight: 640,
+        viewportHeight: 320,
+        viewportOffsetTop: 0,
+        preferLayoutViewport: true,
+      })
+    ).toEqual({
+      appViewportHeight: 640,
+      keyboardOffset: 320,
+    });
+  });
 });

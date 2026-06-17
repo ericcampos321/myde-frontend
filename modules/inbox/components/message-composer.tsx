@@ -2,6 +2,8 @@
 
 import {
   KeyboardEvent,
+  MouseEvent as ReactMouseEvent,
+  PointerEvent as ReactPointerEvent,
   TransitionEvent,
   useCallback,
   useEffect,
@@ -11,6 +13,7 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { AiSuggestionButton } from "./ai-suggestion-button";
 import { EmojiPickerPopover } from "./emoji-picker-popover";
+import { useIsMobileViewport } from "@/modules/inbox/hooks/use-is-mobile-viewport";
 import { useMeQuery } from "@/modules/inbox/hooks/use-me-query";
 import { apiClient } from "@/services/http/api-client";
 import { parseApiError } from "@/services/http/api-error";
@@ -41,6 +44,18 @@ function prefersReducedMotion(): boolean {
   );
 }
 
+function blurActiveComposerInput(textarea: HTMLTextAreaElement | null): void {
+  textarea?.blur();
+
+  if (typeof document === "undefined") {
+    return;
+  }
+
+  if (document.activeElement instanceof HTMLElement) {
+    document.activeElement.blur();
+  }
+}
+
 export function MessageComposer({
   conversationId,
   onComposerFocus,
@@ -56,6 +71,8 @@ export function MessageComposer({
   const composerRootRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const focusTimerRef = useRef<number | null>(null);
+  const lastSelectionRef = useRef<{ start: number; end: number } | null>(null);
+  const isMobile = useIsMobileViewport();
   const { data: me } = useMeQuery();
 
   useEffect(() => {
@@ -98,10 +115,22 @@ export function MessageComposer({
     }, 180);
   }, [onComposerFocus]);
 
+  const saveTextareaSelection = useCallback(() => {
+    const textarea = textareaRef.current;
+    if (!textarea) {
+      return;
+    }
+
+    lastSelectionRef.current = {
+      start: textarea.selectionStart ?? text.length,
+      end: textarea.selectionEnd ?? text.length,
+    };
+  }, [text.length]);
+
   // Abre: monta e, no próximo frame, troca para o estado "aberto" (dispara a
   // transição de entrada). Em reduced-motion abre direto, sem animar.
   const openEmojiPicker = useCallback(() => {
-    textareaRef.current?.blur();
+    blurActiveComposerInput(textareaRef.current);
     setEmojiMounted(true);
     if (prefersReducedMotion()) {
       setEmojiOpen(true);
@@ -114,13 +143,44 @@ export function MessageComposer({
   // desmonte acontece no onTransitionEnd; em reduced-motion desmonta na hora.
   const closeEmojiPicker = useCallback(() => {
     setEmojiOpen(false);
-    if (prefersReducedMotion()) setEmojiMounted(false);
-  }, []);
+    if (isMobile || prefersReducedMotion()) setEmojiMounted(false);
+  }, [isMobile]);
 
   const toggleEmojiPicker = useCallback(() => {
     if (emojiOpen) closeEmojiPicker();
     else openEmojiPicker();
   }, [emojiOpen, openEmojiPicker, closeEmojiPicker]);
+
+  const handleEmojiButtonPointerDown = useCallback(
+    (event: ReactPointerEvent<HTMLButtonElement>) => {
+      event.preventDefault();
+      event.stopPropagation();
+      saveTextareaSelection();
+    },
+    [saveTextareaSelection]
+  );
+
+  const handleEmojiButtonMouseDown = useCallback((event: ReactMouseEvent<HTMLButtonElement>) => {
+    event.preventDefault();
+    event.stopPropagation();
+    saveTextareaSelection();
+  }, [saveTextareaSelection]);
+
+  const handleEmojiButtonClick = useCallback((event: ReactMouseEvent<HTMLButtonElement>) => {
+    event.preventDefault();
+    event.stopPropagation();
+    saveTextareaSelection();
+
+    if (isMobile) {
+      blurActiveComposerInput(textareaRef.current);
+      setEmojiMounted((current) => !emojiOpen || current);
+      setEmojiOpen((current) => !current);
+      return;
+    }
+
+    blurActiveComposerInput(textareaRef.current);
+    toggleEmojiPicker();
+  }, [emojiOpen, isMobile, saveTextareaSelection, toggleEmojiPicker]);
 
   // Desmonta só quando a transição de saída termina (e apenas a do próprio shell).
   function handleEmojiShellTransitionEnd(event: TransitionEvent<HTMLDivElement>) {
@@ -150,28 +210,35 @@ export function MessageComposer({
     };
   }, [emojiOpen, closeEmojiPicker]);
 
-  useEffect(() => {
-    const textarea = textareaRef.current;
-    if (!textarea) {
+  const handleMessageInputFocus = useCallback(() => {
+    if (isMobile) {
+      setEmojiOpen(false);
+      setEmojiMounted(false);
+    } else {
+      closeEmojiPicker();
+    }
+    scheduleScrollToBottom();
+  }, [closeEmojiPicker, isMobile, scheduleScrollToBottom]);
+
+  const closeEmojiPickerBeforeTyping = useCallback(() => {
+    if (isMobile) {
+      setEmojiOpen(false);
+      setEmojiMounted(false);
       return;
     }
 
-    function handleNativeFocus() {
-      closeEmojiPicker();
-      scheduleScrollToBottom();
-    }
-
-    textarea.addEventListener("focus", handleNativeFocus);
-    return () => {
-      textarea.removeEventListener("focus", handleNativeFocus);
-    };
-  }, [closeEmojiPicker, scheduleScrollToBottom]);
+    closeEmojiPicker();
+  }, [closeEmojiPicker, isMobile]);
 
   function insertEmoji(emoji: string) {
     const el = textareaRef.current;
-    const { value, cursor } = insertEmojiAtSelection(text, el?.selectionStart, el?.selectionEnd, emoji);
+    const savedSelection = lastSelectionRef.current;
+    const selectionStart = isMobile ? savedSelection?.start : el?.selectionStart;
+    const selectionEnd = isMobile ? savedSelection?.end : el?.selectionEnd;
+    const { value, cursor } = insertEmojiAtSelection(text, selectionStart, selectionEnd, emoji);
 
     setText(value);
+    lastSelectionRef.current = { start: cursor, end: cursor };
     closeEmojiPicker();
     if (suggestionMessage) setSuggestionMessage(null);
     if (messageState !== "idle") setMessageState("idle");
@@ -179,9 +246,14 @@ export function MessageComposer({
     // No próximo frame (DOM já com o novo valor): foca e posiciona o cursor.
     requestAnimationFrame(() => {
       const node = textareaRef.current;
+      resizeTextarea();
+
+      if (isMobile) {
+        return;
+      }
+
       node?.focus();
       node?.setSelectionRange(cursor, cursor);
-      resizeTextarea();
     });
   }
 
@@ -259,11 +331,18 @@ export function MessageComposer({
       <div className="flex min-h-[62px] items-end gap-1.5 px-3.5">
         <div className="flex min-w-0 flex-1 items-end gap-1 rounded-[22px] bg-chat-footer px-2 py-1.5">
           <div className="relative shrink-0">
-            <FooterIconButton label="Emoji" compact active={emojiOpen} onClick={toggleEmojiPicker}>
+            <FooterIconButton
+              label="Emoji"
+              compact
+              active={emojiOpen}
+              onPointerDown={handleEmojiButtonPointerDown}
+              onMouseDown={handleEmojiButtonMouseDown}
+              onClick={handleEmojiButtonClick}
+            >
               <EmojiIcon />
             </FooterIconButton>
 
-            {emojiMounted && (
+            {emojiMounted && !isMobile && (
               <div
                 className="emoji-picker-popover-shell hidden sm:block"
                 data-state={emojiOpen ? "open" : "closed"}
@@ -279,18 +358,28 @@ export function MessageComposer({
             value={text}
             onChange={(e) => {
               setText(e.target.value);
+              lastSelectionRef.current = {
+                start: e.target.selectionStart ?? e.target.value.length,
+                end: e.target.selectionEnd ?? e.target.value.length,
+              };
               if (suggestionMessage) setSuggestionMessage(null);
               if (messageState !== "idle") setMessageState("idle");
               resizeTextarea();
             }}
             onKeyDown={handleKeyDown}
+            onPointerDown={closeEmojiPickerBeforeTyping}
+            onMouseDown={closeEmojiPickerBeforeTyping}
+            onTouchStart={closeEmojiPickerBeforeTyping}
+            onClick={saveTextareaSelection}
+            onKeyUp={saveTextareaSelection}
+            onSelect={saveTextareaSelection}
             placeholder="Digite uma mensagem"
             rows={1}
             style={{ maxHeight: MAX_TEXTAREA_HEIGHT }}
             className="block min-w-0 flex-1 resize-none overflow-hidden border-transparent bg-transparent px-2 py-[11px] text-[15px] leading-[20px] focus:border-transparent focus:ring-0"
             aria-label="Campo de mensagem"
             disabled={isSending}
-            onFocus={scheduleScrollToBottom}
+            onFocus={handleMessageInputFocus}
           />
 
           <div className="flex shrink-0 items-center gap-2">
@@ -313,15 +402,14 @@ export function MessageComposer({
         </div>
       </div>
 
-      {emojiOpen ? (
-        <div className="sm:hidden px-2 pt-2">
-          <div className="overflow-hidden rounded-t-[18px] border-t border-border bg-[#111b21] shadow-[0_-10px_32px_rgba(0,0,0,0.32)]">
-            <EmojiPickerPopover
-              onEmojiSelect={insertEmoji}
-              height={320}
-              className="w-full rounded-none border-0 shadow-none"
-            />
-          </div>
+      {isMobile && emojiOpen ? (
+        <div className="px-2 pt-2">
+          <EmojiPickerPopover
+            onEmojiSelect={insertEmoji}
+            height="min(320px, 38dvh)"
+            fullWidth
+            className="w-full rounded-t-[18px] rounded-b-none border-x-0 border-b-0 border-t border-border bg-[#111b21] pb-[env(safe-area-inset-bottom,0px)] shadow-[0_-10px_32px_rgba(0,0,0,0.32)]"
+          />
         </div>
       ) : null}
     </div>
@@ -387,13 +475,19 @@ export function resolveAiSuggestionComposerState(currentText: string, suggestion
 function FooterIconButton({
   label,
   onClick,
+  onPointerDown,
+  onMouseDown,
+  className,
   disabled = false,
   compact = false,
   active = false,
   children,
 }: {
   label: string;
-  onClick?: () => void;
+  onClick?: (event: ReactMouseEvent<HTMLButtonElement>) => void;
+  onPointerDown?: (event: ReactPointerEvent<HTMLButtonElement>) => void;
+  onMouseDown?: (event: ReactMouseEvent<HTMLButtonElement>) => void;
+  className?: string;
   disabled?: boolean;
   compact?: boolean;
   active?: boolean;
@@ -405,6 +499,8 @@ function FooterIconButton({
       aria-label={label}
       aria-pressed={onClick ? active : undefined}
       title={disabled ? undefined : label}
+      onPointerDown={onPointerDown}
+      onMouseDown={onMouseDown}
       onClick={onClick}
       disabled={disabled}
       className={[
@@ -412,6 +508,7 @@ function FooterIconButton({
         active ? "text-accent" : "text-text-muted",
         onClick && !disabled ? "cursor-pointer" : "",
         compact ? "h-9 w-9" : "h-10 w-10",
+        className ?? "",
       ].join(" ")}
     >
       {children}

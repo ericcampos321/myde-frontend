@@ -8,7 +8,8 @@ interface EmojiPickerPopoverProps {
   /** Recebe apenas a string do emoji (nunca o payload bruto). */
   onEmojiSelect: (emoji: string) => void;
   className?: string;
-  height?: number;
+  height?: number | string;
+  fullWidth?: boolean;
 }
 
 // Nomes das categorias em pt-BR (a lib usa inglês por padrão).
@@ -66,6 +67,7 @@ export function EmojiPickerPopover({
   onEmojiSelect,
   className,
   height = 480,
+  fullWidth = false,
 }: EmojiPickerPopoverProps) {
   return (
     <div
@@ -75,7 +77,7 @@ export function EmojiPickerPopover({
         "overflow-hidden rounded-lg border border-[#222e35] bg-[#111b21] shadow-[0_8px_24px_rgba(0,0,0,0.4)]",
         className
       )}
-      style={{ width: "min(470px, calc(100vw - 24px))" }}
+      style={{ width: fullWidth ? "100%" : "min(470px, calc(100vw - 24px))" }}
     >
       <EmojiPicker
         theme={Theme.DARK}
@@ -84,6 +86,7 @@ export function EmojiPickerPopover({
         width="100%"
         height={height}
         lazyLoadEmojis
+        autoFocusSearch={false}
         previewConfig={{ showPreview: false }}
         style={pickerVars}
         onEmojiClick={(emojiData: EmojiClickData) => onEmojiSelect(emojiData.emoji)}

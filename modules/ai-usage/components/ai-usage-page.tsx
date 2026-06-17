@@ -8,6 +8,7 @@ import { Select } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ErrorState } from "@/components/ui/error-state";
 import { EmptyState } from "@/components/ui/empty-state";
+import { cn } from "@/utils/cn";
 import { useAiUsageQuery } from "@/modules/ai-usage/hooks/use-ai-usage-query";
 import {
   AI_USAGE_PERIODS,
@@ -16,6 +17,7 @@ import {
   type AiUsagePeriodId,
 } from "@/modules/ai-usage/utils/ai-usage-period";
 import {
+  countActiveAiUsageFilters,
   EMPTY_AI_USAGE_FILTERS,
   hasActiveAiUsageFilters,
   type AiUsageFilters,
@@ -28,6 +30,8 @@ const PAGE_LIMIT = "20";
 export function AiUsagePage() {
   const [period, setPeriod] = useState<AiUsagePeriodId>(DEFAULT_AI_USAGE_PERIOD);
   const [filters, setFilters] = useState<AiUsageFilters>(EMPTY_AI_USAGE_FILTERS);
+  const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
+  const [mobileDraftFilters, setMobileDraftFilters] = useState<AiUsageFilters>(EMPTY_AI_USAGE_FILTERS);
   const [cursorStack, setCursorStack] = useState<string[]>([]);
   // Recalcula o range só quando o período muda (evita refetch a cada render).
   const range = useMemo(() => resolvePeriodRange(period), [period]);
@@ -48,6 +52,7 @@ export function AiUsagePage() {
 
   const summary = data?.summary;
   const hasActiveFilters = hasActiveAiUsageFilters(filters);
+  const activeFilterCount = countActiveAiUsageFilters(filters);
   const isEmpty = !!summary && summary.totalInteractions === 0;
   const isFilteredEmpty = isEmpty && hasActiveFilters;
 
@@ -59,6 +64,53 @@ export function AiUsagePage() {
   const handleClearFilters = () => {
     setFilters(EMPTY_AI_USAGE_FILTERS);
     setCursorStack([]);
+  };
+
+  useEffect(() => {
+    if (!mobileFiltersOpen) {
+      return;
+    }
+
+    setMobileDraftFilters(filters);
+  }, [filters, mobileFiltersOpen]);
+
+  useEffect(() => {
+    if (!mobileFiltersOpen) {
+      return;
+    }
+
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        setMobileFiltersOpen(false);
+      }
+    }
+
+    document.addEventListener("keydown", handleKeyDown);
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+
+    return () => {
+      document.removeEventListener("keydown", handleKeyDown);
+      document.body.style.overflow = previousOverflow;
+    };
+  }, [mobileFiltersOpen]);
+
+  const handleOpenMobileFilters = () => {
+    setMobileDraftFilters(filters);
+    setMobileFiltersOpen(true);
+  };
+
+  const handleApplyMobileFilters = () => {
+    setFilters(mobileDraftFilters);
+    setCursorStack([]);
+    setMobileFiltersOpen(false);
+  };
+
+  const handleClearMobileFilters = () => {
+    setMobileDraftFilters(EMPTY_AI_USAGE_FILTERS);
+    setFilters(EMPTY_AI_USAGE_FILTERS);
+    setCursorStack([]);
+    setMobileFiltersOpen(false);
   };
 
   return (
@@ -79,7 +131,7 @@ export function AiUsagePage() {
       />
 
       <div className="min-w-0 flex-1 overflow-y-auto">
-        <div className="mx-auto flex w-full max-w-7xl flex-col gap-6 px-4 py-6 sm:px-6">
+        <div className="mx-auto flex w-full max-w-7xl flex-col gap-5 px-4 py-5 sm:gap-6 sm:px-6 sm:py-6">
           <header className="flex flex-col gap-2">
             <Link href="/" className="w-fit text-[13px] text-text-muted hover:text-text">
               ← Voltar para o inbox
@@ -138,11 +190,31 @@ export function AiUsagePage() {
                   </section>
                 )}
 
-                <UsageFilters
-                  filters={filters}
-                  onFilterChange={handleFilterChange}
-                  onClearFilters={handleClearFilters}
-                />
+                <div className="sm:hidden">
+                  <button
+                    type="button"
+                    onClick={handleOpenMobileFilters}
+                    className="flex h-11 w-full cursor-pointer items-center justify-between rounded-xl border border-border bg-surface px-4 text-[14px] font-medium text-text transition-colors hover:bg-surface-active"
+                  >
+                    <span className="flex items-center gap-2">
+                      <FilterIcon />
+                      Filtros
+                    </span>
+                    {activeFilterCount > 0 ? (
+                      <span className="inline-flex min-w-6 items-center justify-center rounded-full bg-accent/15 px-2 py-0.5 text-[11px] font-semibold text-accent">
+                        {activeFilterCount}
+                      </span>
+                    ) : null}
+                  </button>
+                </div>
+
+                <div className="hidden sm:block">
+                  <UsageFilters
+                    filters={filters}
+                    onFilterChange={handleFilterChange}
+                    onClearFilters={handleClearFilters}
+                  />
+                </div>
 
                 {isFilteredEmpty ? (
                   <Card className="p-8">
@@ -161,24 +233,53 @@ export function AiUsagePage() {
                     />
                   </Card>
                 ) : (
-                  <RecentTable
-                    items={data.recent.items}
-                    hasNextPage={data.recent.hasNextPage}
-                    pageIndex={cursorStack.length}
-                    isFetching={isFetching}
-                    onPrevious={() => setCursorStack((stack) => stack.slice(0, -1))}
-                    onNext={() => {
-                      if (data.recent.nextCursor) {
-                        setCursorStack((stack) => [...stack, data.recent.nextCursor!]);
-                      }
-                    }}
-                  />
+                  <>
+                    <div className="sm:hidden">
+                      <RecentCards
+                        items={data.recent.items}
+                        hasNextPage={data.recent.hasNextPage}
+                        pageIndex={cursorStack.length}
+                        isFetching={isFetching}
+                        onPrevious={() => setCursorStack((stack) => stack.slice(0, -1))}
+                        onNext={() => {
+                          if (data.recent.nextCursor) {
+                            setCursorStack((stack) => [...stack, data.recent.nextCursor!]);
+                          }
+                        }}
+                      />
+                    </div>
+                    <div className="hidden sm:block">
+                      <RecentTable
+                        items={data.recent.items}
+                        hasNextPage={data.recent.hasNextPage}
+                        pageIndex={cursorStack.length}
+                        isFetching={isFetching}
+                        onPrevious={() => setCursorStack((stack) => stack.slice(0, -1))}
+                        onNext={() => {
+                          if (data.recent.nextCursor) {
+                            setCursorStack((stack) => [...stack, data.recent.nextCursor!]);
+                          }
+                        }}
+                      />
+                    </div>
+                  </>
                 )}
               </>
             )
           )}
         </div>
       </div>
+
+      <MobileFilterSheet
+        open={mobileFiltersOpen}
+        filters={mobileDraftFilters}
+        onClose={() => setMobileFiltersOpen(false)}
+        onChange={(key, value) =>
+          setMobileDraftFilters((current) => ({ ...current, [key]: value }))
+        }
+        onApply={handleApplyMobileFilters}
+        onClear={handleClearMobileFilters}
+      />
     </div>
   );
 }
@@ -208,59 +309,73 @@ function UsageFilters({
           Limpar filtros
         </button>
       </div>
-      <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
-        <FilterInput label="Modelo" value={filters.model} placeholder="gpt-5.4" onChange={(value) => update("model", value)} />
-        <FilterInput
-          label="Conversa"
-          value={filters.conversationId}
-          placeholder="ID da conversa"
-          onChange={(value) => update("conversationId", value)}
-        />
-        <FilterSelect
-          label="Origem"
-          value={filters.source}
-          onChange={(value) => update("source", value)}
-          options={[
-            { value: "", label: "Todas" },
-            { value: "openai", label: "OpenAI" },
-            { value: "stub", label: "Stub" },
-          ]}
-        />
-        <FilterSelect
-          label="Risco"
-          value={filters.riskLevel}
-          onChange={(value) => update("riskLevel", value)}
-          options={[
-            { value: "", label: "Todos" },
-            { value: "low", label: "Baixo" },
-            { value: "medium", label: "Médio" },
-            { value: "high", label: "Alto" },
-          ]}
-        />
-        <FilterSelect
-          label="Bloqueado"
-          value={filters.blocked}
-          onChange={(value) => update("blocked", value)}
-          options={[
-            { value: "", label: "Todos" },
-            { value: "true", label: "Sim" },
-            { value: "false", label: "Não" },
-          ]}
-        />
-        <FilterSelect
-          label="Fluxo"
-          value={filters.stage}
-          onChange={(value) => update("stage", value)}
-          options={[
-            { value: "", label: "Todos" },
-            { value: "input", label: "Entrada" },
-            { value: "output", label: "Saída" },
-            { value: "recurring", label: "Recorrência" },
-            { value: "auto_reply", label: "Auto-reply" },
-          ]}
-        />
-      </div>
+      <AiUsageFilterFields filters={filters} onChange={update} className="grid gap-3 md:grid-cols-2 lg:grid-cols-3" />
     </Card>
+  );
+}
+
+function AiUsageFilterFields({
+  filters,
+  onChange,
+  className,
+}: {
+  filters: AiUsageFilters;
+  onChange: (key: keyof AiUsageFilters, value: string) => void;
+  className?: string;
+}) {
+  return (
+    <div className={className}>
+      <FilterInput label="Modelo" value={filters.model} placeholder="gpt-5.4" onChange={(value) => onChange("model", value)} />
+      <FilterInput
+        label="Conversa"
+        value={filters.conversationId}
+        placeholder="ID da conversa"
+        onChange={(value) => onChange("conversationId", value)}
+      />
+      <FilterSelect
+        label="Origem"
+        value={filters.source}
+        onChange={(value) => onChange("source", value)}
+        options={[
+          { value: "", label: "Todas" },
+          { value: "openai", label: "OpenAI" },
+          { value: "stub", label: "Stub" },
+        ]}
+      />
+      <FilterSelect
+        label="Risco"
+        value={filters.riskLevel}
+        onChange={(value) => onChange("riskLevel", value)}
+        options={[
+          { value: "", label: "Todos" },
+          { value: "low", label: "Baixo" },
+          { value: "medium", label: "Médio" },
+          { value: "high", label: "Alto" },
+        ]}
+      />
+      <FilterSelect
+        label="Bloqueado"
+        value={filters.blocked}
+        onChange={(value) => onChange("blocked", value)}
+        options={[
+          { value: "", label: "Todos" },
+          { value: "true", label: "Sim" },
+          { value: "false", label: "Não" },
+        ]}
+      />
+      <FilterSelect
+        label="Fluxo"
+        value={filters.stage}
+        onChange={(value) => onChange("stage", value)}
+        options={[
+          { value: "", label: "Todos" },
+          { value: "input", label: "Entrada" },
+          { value: "output", label: "Saída" },
+          { value: "recurring", label: "Recorrência" },
+          { value: "auto_reply", label: "Auto-reply" },
+        ]}
+      />
+    </div>
   );
 }
 
@@ -311,9 +426,9 @@ function FilterSelect({
 
 function MetricCard({ label, value }: { label: string; value: string }) {
   return (
-    <Card className="flex flex-col gap-1 p-4">
-      <span className="text-[12px] text-text-muted">{label}</span>
-      <span className="text-[20px] font-semibold tabular-nums text-text">{value}</span>
+    <Card className="flex min-w-0 flex-col gap-1 p-3 sm:p-4">
+      <span className="text-[11px] text-text-muted sm:text-[12px]">{label}</span>
+      <span className="truncate text-[17px] font-semibold tabular-nums text-text sm:text-[20px]">{value}</span>
     </Card>
   );
 }
@@ -413,6 +528,171 @@ function RecentTable({
   );
 }
 
+function RecentCards({
+  items,
+  hasNextPage,
+  pageIndex,
+  isFetching,
+  onPrevious,
+  onNext,
+}: {
+  items: AiUsageRecentItem[];
+  hasNextPage: boolean;
+  pageIndex: number;
+  isFetching: boolean;
+  onPrevious: () => void;
+  onNext: () => void;
+}) {
+  if (items.length === 0) {
+    return (
+      <Card className="p-6">
+        <EmptyState title="Sem interações recentes" description="As últimas interações de IA aparecem aqui." />
+      </Card>
+    );
+  }
+
+  return (
+    <div className="flex flex-col gap-3">
+      <Card className="p-4">
+        <div className="flex flex-col gap-3">
+          <div>
+            <h2 className="text-[14px] font-semibold text-text">Interações recentes</h2>
+            <p className="text-[12px] text-text-muted">
+              Página {pageIndex + 1} · {items.length} carregadas
+            </p>
+          </div>
+          <div className="grid grid-cols-2 gap-2">
+            <button
+              type="button"
+              disabled={pageIndex === 0 || isFetching}
+              onClick={onPrevious}
+              className="cursor-pointer rounded-xl border border-border px-4 py-2.5 text-[13px] font-medium text-text-muted transition-colors hover:bg-surface-active hover:text-text disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              Anterior
+            </button>
+            <button
+              type="button"
+              disabled={!hasNextPage || isFetching}
+              onClick={onNext}
+              className="cursor-pointer rounded-xl border border-border px-4 py-2.5 text-[13px] font-medium text-text-muted transition-colors hover:bg-surface-active hover:text-text disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              Próxima
+            </button>
+          </div>
+        </div>
+      </Card>
+
+      {items.map((item, index) => (
+        <Card key={item.id || `${item.conversationId}-${item.createdAt ?? index}`} className="p-4">
+          <div className="flex flex-col gap-3">
+            <div className="flex items-start justify-between gap-3">
+              <div className="text-[12px] text-text-muted">{formatDateTime(item.createdAt)}</div>
+              <div className="shrink-0 text-[13px] font-semibold tabular-nums text-text">
+                {formatCostUsd(item.estimatedCostUsd)}
+              </div>
+            </div>
+
+            <div className="min-w-0">
+              <p className="truncate text-[13px] font-medium text-text-muted">
+                Conversa {item.conversationId.slice(0, 8)} · {formatStage(item.stage)}
+              </p>
+            </div>
+
+            <div className="flex flex-wrap gap-2">
+              <MetaPill>{formatOrigin(item)}</MetaPill>
+              <MetaPill>{item.model ?? "—"}</MetaPill>
+              <RiskPill level={item.riskLevel} />
+              <BlockedPill blocked={item.blocked} />
+            </div>
+
+            <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-[12px]">
+              <MetricRow label="Entrada" value={formatTokens(item.promptTokens)} />
+              <MetricRow label="Saída" value={formatTokens(item.completionTokens)} />
+              <MetricRow label="Cache" value={formatTokens(item.cachedPromptTokens)} />
+              <MetricRow label="Duração" value={formatDurationMs(item.durationMs)} />
+            </div>
+          </div>
+        </Card>
+      ))}
+    </div>
+  );
+}
+
+function MobileFilterSheet({
+  open,
+  filters,
+  onClose,
+  onChange,
+  onApply,
+  onClear,
+}: {
+  open: boolean;
+  filters: AiUsageFilters;
+  onClose: () => void;
+  onChange: (key: keyof AiUsageFilters, value: string) => void;
+  onApply: () => void;
+  onClear: () => void;
+}) {
+  if (!open) {
+    return null;
+  }
+
+  return (
+    <>
+      <button
+        type="button"
+        aria-label="Fechar filtros"
+        onClick={onClose}
+        className="fixed inset-0 z-40 bg-black/55 sm:hidden"
+      />
+      <div className="fixed inset-x-0 bottom-0 z-50 max-h-[85dvh] rounded-t-2xl border-t border-border bg-surface px-4 pb-[calc(env(safe-area-inset-bottom,0px)+16px)] pt-4 shadow-[0_-18px_48px_rgba(0,0,0,0.45)] sm:hidden">
+        <div className="mx-auto mb-4 h-1.5 w-12 rounded-full bg-border" />
+        <div className="flex max-h-[calc(85dvh-14px)] flex-col">
+          <div className="mb-4 flex items-center justify-between gap-3">
+            <div>
+              <h2 className="text-[16px] font-semibold text-text">Filtros</h2>
+              <p className="text-[12px] text-text-muted">Ajuste os filtros e aplique para atualizar a lista.</p>
+            </div>
+            <button
+              type="button"
+              aria-label="Fechar filtros"
+              onClick={onClose}
+              className="flex h-10 w-10 cursor-pointer items-center justify-center rounded-full text-text-muted transition-colors hover:bg-surface-active hover:text-text"
+            >
+              <CloseIcon />
+            </button>
+          </div>
+
+          <div className="flex-1 overflow-y-auto pr-1">
+            <AiUsageFilterFields
+              filters={filters}
+              onChange={onChange}
+              className="grid gap-3"
+            />
+          </div>
+
+          <div className="mt-4 grid grid-cols-2 gap-2">
+            <button
+              type="button"
+              onClick={onClear}
+              className="cursor-pointer rounded-xl border border-border px-4 py-3 text-[13px] font-medium text-text-muted transition-colors hover:bg-surface-active hover:text-text"
+            >
+              Limpar filtros
+            </button>
+            <button
+              type="button"
+              onClick={onApply}
+              className="cursor-pointer rounded-xl bg-accent px-4 py-3 text-[13px] font-semibold text-white transition-colors hover:bg-accent-hover"
+            >
+              Aplicar filtros
+            </button>
+          </div>
+        </div>
+      </div>
+    </>
+  );
+}
+
 function formatStage(stage: AiUsageRecentItem["stage"]): string {
   const labels: Record<AiUsageRecentItem["stage"], string> = {
     input: "Entrada",
@@ -437,6 +717,36 @@ function RiskPill({ level }: { level: AiUsageRecentItem["riskLevel"] }) {
     high: "bg-danger/15 text-danger",
   };
   return <span className={`rounded-full px-2 py-0.5 text-[11px] font-medium ${styles[level]}`}>{level}</span>;
+}
+
+function BlockedPill({ blocked }: { blocked: boolean }) {
+  return (
+    <span
+      className={cn(
+        "rounded-full px-2 py-0.5 text-[11px] font-medium",
+        blocked ? "bg-danger/15 text-danger" : "bg-surface-active text-text-muted"
+      )}
+    >
+      {blocked ? "bloqueado" : "não bloqueado"}
+    </span>
+  );
+}
+
+function MetaPill({ children }: { children: React.ReactNode }) {
+  return (
+    <span className="rounded-full bg-surface-active px-2 py-0.5 text-[11px] font-medium text-text-muted">
+      {children}
+    </span>
+  );
+}
+
+function MetricRow({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="flex items-center justify-between gap-2 rounded-lg bg-surface-active/45 px-2.5 py-2">
+      <span className="text-text-muted">{label}</span>
+      <span className="font-medium tabular-nums text-text">{value}</span>
+    </div>
+  );
 }
 
 function Th({ children, className = "" }: { children: React.ReactNode; className?: string }) {
@@ -467,5 +777,26 @@ function UsageSkeleton() {
         </div>
       </Card>
     </div>
+  );
+}
+
+function FilterIcon() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden>
+      <path
+        d="M4 6h16M7 12h10M10 18h4"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+      />
+    </svg>
+  );
+}
+
+function CloseIcon() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden>
+      <path d="m6 6 12 12M18 6 6 18" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+    </svg>
   );
 }
