@@ -5,6 +5,7 @@ import { useCallback, useMemo, useState } from "react";
 import { ConversationSearch } from "./conversation-search";
 import { ConversationListItem } from "./conversation-list-item";
 import { ContactList } from "./contact-list";
+import { MobileBottomNav } from "./mobile-bottom-nav";
 import { RecentSearchesPanel } from "./recent-searches-panel";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ErrorState } from "@/components/ui/error-state";
@@ -113,7 +114,7 @@ export function ConversationList({ conversations, isLoading, isFetching, isError
   );
 
   return (
-    <div className="flex h-full min-w-0 overflow-hidden bg-sidebar">
+    <div className="relative flex h-full min-w-0 overflow-hidden bg-sidebar">
       <InboxRail activeSection={activeSection} onSectionChange={handleSectionChange} unreadCount={totalUnreadMessages} />
 
       <div
@@ -199,14 +200,24 @@ export function ConversationList({ conversations, isLoading, isFetching, isError
             {shouldShowArchiveRow && (
               <button
                 type="button"
-                className="flex h-[45px] w-full shrink-0 items-center gap-3 border-b border-border px-5 text-[#8696a0] transition-colors hover:bg-surface-raised hover:text-text"
+                disabled
+                aria-disabled="true"
+                title="Arquivamento será habilitado em uma próxima versão."
+                className="flex h-[45px] w-full shrink-0 cursor-not-allowed items-center justify-between gap-3 px-5 text-[#8696a0] opacity-75"
               >
-                <ArchiveIcon />
-                <span className="text-[14px] font-medium">Arquivadas</span>
+                <span className="flex items-center gap-3">
+                  <ArchiveIcon />
+                  <span className="text-[14px] font-medium">
+                    Arquivadas
+                  </span>
+                </span>
+                <span className="inline-flex items-center rounded-full bg-surface-raised px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.02em] text-text-muted">
+                  Em breve
+                </span>
               </button>
             )}
 
-            <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
+            <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain pb-[calc(84px+env(safe-area-inset-bottom,0px))] sm:pb-0">
               {isLoading && <ConversationListSkeleton />}
 
               {isError && <ErrorState message="Não foi possível carregar as conversas." retry={onRetry} />}
@@ -239,6 +250,13 @@ export function ConversationList({ conversations, isLoading, isFetching, isError
           />
         )}
       </div>
+
+      {!selectedId ? (
+        <MobileBottomNav
+          activeSection={activeSection}
+          onSectionChange={handleSectionChange}
+        />
+      ) : null}
     </div>
   );
 }

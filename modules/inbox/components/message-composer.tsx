@@ -243,7 +243,7 @@ export function MessageComposer({
   return (
     <div
       ref={composerRootRef}
-      className="sticky bottom-0 z-10 shrink-0 bg-chat-header/95 pb-[calc(env(safe-area-inset-bottom,0px)+8px)] pt-1 backdrop-blur-[2px]"
+      className="sticky bottom-0 z-10 shrink-0 bg-transparent pb-[calc(env(safe-area-inset-bottom,0px)+8px)] pt-1"
     >
       {messageState === "error" && (
         <p className="px-4 pt-1.5 text-[11px] text-danger" role="alert">

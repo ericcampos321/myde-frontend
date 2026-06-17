@@ -1,376 +1,260 @@
-# Myde Inbox — Frontend Challenge
+# Myde Inbox
 
-Inbox de atendimento WhatsApp consumindo o backend real Myde/Maude.
+## Resumo executivo
 
----
+O Myde Inbox foi desenvolvido como resposta a um desafio técnico com duas frentes complementares: uma interface de inbox em Next.js para atendimento WhatsApp com IA e um backend Node.js para ingestão de webhook, persistência, processamento assíncrono e resposta automatizada com grounding em base de conhecimento. Em vez de tratar frontend e backend como entregas isoladas, o projeto foi estruturado como um fluxo operacional completo de atendimento.
 
-## Funcionalidades entregues
+O resultado é uma solução fullstack integrada, com frontend, backend, banco de dados, fila, observabilidade, guardrails de IA e controles de idempotência e isolamento por tenant. A implementação cobre os requisitos centrais do desafio e adiciona hardening onde isso melhora previsibilidade operacional, segurança e facilidade de validação.
 
-- Lista de conversas com contato, última mensagem, horário e indicador de não-lidas
-- Busca e filtro local em tempo real
-- Tela de chat com histórico de mensagens
-- Bolhas diferenciadas por direção (`in` = cliente / `out` = atendente) com status de envio
-- Botão "Sugerir IA" — chama `POST /ai/suggest` no backend real e preenche o composer
-- Composer em modo assistido quando o backend ainda não expõe envio outbound real
-- Erro de sugestão IA isolado — não bloqueia o chat
-- **Polling moderado**: conversas a cada 12s, mensagens a cada 5s (só com conversa ativa)
-- Indicador discreto de sincronização em background (barra azul na sidebar)
-- Estados visuais: loading skeleton, erro com retry, empty state em todas as superfícies
-- Layout responsivo: sidebar + chat no desktop, navegação alternada no mobile
-- Visual dark premium alinhado à identidade Myde (`#02060D` background, `#1E80FF` accent)
-- Acessibilidade básica: `aria-label` em ações, `role="log"` no chat, `role="alert"` em erros, foco visível
+## Relação com os dois desafios
 
----
+O projeto atende diretamente aos dois escopos pedidos:
 
-## Stack
+- **Desafio Frontend**: inbox operacional em Next.js App Router, com lista de conversas, chat, envio, sugestão com IA, estados de loading/erro/vazio, atualização otimista, polling, cache e responsividade.
+- **Desafio Backend**: API Node.js/TypeScript com webhook Meta, validação HMAC com corpo cru, persistência relacional, worker assíncrono com Redis/BullMQ, integração com OpenAI, idempotência, multi-tenant, retries e logs estruturados.
 
-| Tecnologia | Versão | Papel |
-|---|---|---|
-| Next.js | ^15.5.19 | Framework — App Router |
-| React | 19.0.0 | UI |
-| TypeScript | ^5.7.0 | Tipagem estática |
-| Tailwind CSS | ^4.0.0 | Estilos utility-first |
-| TanStack React Query | ^5.62.0 | Data fetching, cache e mutações |
-| Axios | ^1.7.9 | Cliente HTTP centralizado |
-| clsx + tailwind-merge | ^2 / ^3 | Composição de classes Tailwind |
+Além do escopo mínimo, o projeto incorporou decisões conscientes de **production-readiness**: BFF no frontend, constraints compostas no banco, controle de leitura por operador, auditoria de uso da IA, custo estimado por modelo, sanitização de DTOs e testes além do mínimo pedido.
 
-> Fluxo principal: frontend em `localhost:3000` consumindo `myde-backend` em `localhost:8000`.
+## Entrega do frontend
 
----
+O frontend não foi tratado como uma tela estática. A aplicação foi construída em **Next.js App Router** com **TypeScript**, **Tailwind**, **React Query** e uma camada **BFF** em `/api/**`, para que o browser consuma contratos já sanitizados e não dependa diretamente do backend operacional.
+
+Principais entregas do frontend:
+
+- lista de conversas com preview, horário, status da última mensagem e indicador de não lidas;
+- tela de chat com histórico, agrupamento visual de mensagens e composer funcional;
+- envio de mensagem com atualização otimista;
+- sugestão de resposta com IA no composer;
+- busca de mensagens por termo e data;
+- estados de loading, erro e vazio nas superfícies principais;
+- polling moderado e cache com React Query;
+- navegação responsiva entre lista, contatos e conversa;
+- painel `/ai-usage` para auditoria operacional da LLM.
+
+Em termos de arquitetura, a aplicação separa claramente:
+
+- **rotas BFF** (`app/api/**`);
+- **serviços server-side** de integração com o backend;
+- **sanitização de DTOs** antes de entregar dados ao browser;
+- **hooks de dados** por recurso;
+- **componentes de domínio** do inbox;
+- **componentes visuais reutilizáveis**.
+
+## Entrega do backend
+
+O backend foi implementado em **Node.js + TypeScript**, usando **Fastify**, **PostgreSQL**, **Drizzle ORM**, **Redis/BullMQ**, **OpenAI** e integração com a **Meta WhatsApp Cloud API**.
+
+Principais entregas do backend:
+
+- recebimento de webhook da Meta com validação de assinatura HMAC;
+- persistência de tenants, contatos, conversas, mensagens, estados de leitura e logs de IA;
+- webhook rápido, sem chamada à OpenAI dentro do request da Meta;
+- enfileiramento assíncrono para processamento de mensagens inbound;
+- worker dedicado para processamento, geração com IA e auto-reply quando habilitado;
+- envio outbound manual e automático via Meta;
+- idempotência para evitar duplicidade em reentregas da Meta e reprocessamento de jobs;
+- logs estruturados com contexto operacional.
+
+O desenho segue uma premissa simples: **o webhook recebe, valida, persiste e enfileira; o worker processa**. Isso reduz latência no ponto mais sensível da integração e evita acoplamento entre recebimento de evento externo e chamada de IA.
+
+## Decisões de arquitetura
+
+- **Fastify no backend**: escolhido por baixo overhead, boa performance, validação por schema e arquitetura enxuta.
+- **BFF no frontend**: evita expor o backend operacional ao browser e centraliza sanitização de contratos.
+- **React Query como estado servidor**: cache, polling, invalidação e mutações sem adicionar uma segunda camada de estado global.
+- **BullMQ + Redis**: desacoplamento entre webhook inbound e processamento de IA/outbound.
+- **PostgreSQL + Drizzle**: modelo relacional com migrations, constraints e tipagem de schema.
+- **Knowledge base local em Markdown**: suficiente para grounding do fluxo atual, sem antecipar infraestrutura maior que o necessário.
+
+O projeto evita complexidade que não é necessária para o estágio atual. Não há event sourcing, arquitetura distribuída artificial ou abstrações pesadas sem retorno prático no desafio.
+
+## Segurança, idempotência e multi-tenant
+
+O backend valida a assinatura da Meta com **corpo cru**, usando `X-Hub-Signature-256` e o segredo configurado no servidor. Esse ponto é importante porque o fluxo depende de confiança no webhook recebido.
+
+A idempotência foi tratada como requisito operacional, não como detalhe opcional:
+
+- mensagens inbound usam `externalMessageId` para evitar duplicidade;
+- jobs de fila usam `jobId` estável para evitar reprocessamento redundante;
+- o fluxo tolera reentregas da Meta sem duplicar persistência nem efeitos colaterais.
+
+O isolamento multi-tenant é reforçado em mais de uma camada:
+
+- filtros por `tenantId` nas queries operacionais;
+- unicidades compostas por tenant;
+- foreign keys compostas para impedir relações cruzadas entre tenants;
+- resolução do tenant no servidor, em vez de confiar em `tenantId` vindo do client.
+
+## Integração com IA e controle de custo
+
+A integração com IA foi construída sobre dois casos de uso:
+
+- **sugestão manual** para operador no inbox;
+- **auto-reply** no worker quando habilitado.
+
+O projeto usa grounding em base de conhecimento, fallback seguro, regras de guardrail e proteção contra prompt injection. O objetivo aqui não foi apenas “chamar a OpenAI”, mas garantir que a resposta seja contextualizada e previsível dentro do domínio do atendimento.
+
+O painel **`/ai-usage`** demonstra controle operacional da LLM:
+
+- chamadas por período;
+- tokens de entrada e saída;
+- tokens em cache, quando disponíveis;
+- duração média;
+- bloqueios por guardrail;
+- custo estimado por modelo.
+
+Esse custo é **estimado**, não billing real. Ele existe para dar visibilidade de consumo e apoiar decisões operacionais. O painel também foi desenhado para não expor prompt, mensagem sensível, system prompt, token ou segredo.
+
+## Banco de dados e confiabilidade
+
+O banco foi modelado para sustentar o fluxo operacional real do inbox:
+
+- `tenants`
+- `whatsapp_contacts`
+- `whatsapp_conversations`
+- `whatsapp_messages`
+- `conversation_read_states`
+- `inbox_recent_searches`
+- `ai_interaction_logs`
+
+Além das tabelas, a confiabilidade foi reforçada com:
+
+- migrations explícitas;
+- índices por tenant, conversa e data;
+- constraints compostas para isolamento e integridade;
+- suporte a leitura por operador;
+- persistência de auditoria de uso da IA.
+
+No backend, a confiabilidade operacional também passa por:
+
+- retry/backoff na fila;
+- logs estruturados com `reqId`, `tenantId`, `conversationId`, `messageId` e `jobId`;
+- healthcheck e readiness;
+- script de checagem de schema local para evitar erro de migration pendente.
+
+## Testes e validações
+
+O projeto possui cobertura acima do mínimo típico de desafio:
+
+- testes unitários;
+- testes de integração com banco;
+- testes de integração com Redis/fila;
+- testes de sanitização e utilitários no frontend;
+- validação de typecheck, lint e build.
+
+Comandos principais de validação:
+
+### Backend
+
+```bash
+cd myde-backend
+npm run db:migrate
+npm run check:db
+npm run db:seed
+npm run typecheck
+npm run test
+npm run build
+```
+
+### Frontend
+
+```bash
+cd myde-frontend
+npm run typecheck
+npm run lint
+npm run test
+npm run build
+```
+
+## Premissas assumidas
+
+- o inbox opera em contexto **tenant-scoped**;
+- o backend é a fonte de verdade dos dados operacionais;
+- o browser não deve receber DTO cru quando o BFF pode sanitizar;
+- o webhook da Meta precisa responder rápido e não deve esperar IA;
+- custo da LLM precisa ser visível operacionalmente, mesmo sem billing real;
+- guardrails devem bloquear cenários inseguros sem derrubar o fluxo inteiro.
+
+## O que ficou para depois
+
+Os pontos abaixo ficaram conscientemente fora do escopo desta entrega e formam um roadmap natural de evolução:
+
+- separar API e workers em serviços/deploys independentes;
+- pipeline completo de produção com migrations controladas, rollback, health checks e smoke tests;
+- observabilidade externa com OpenTelemetry/Grafana/Loki/Datadog/Elastic;
+- arquivamento completo de conversas;
+- painel administrativo para tenants, operadores, permissões, base de conhecimento e limites de IA;
+- versionamento da base de conhecimento;
+- testes E2E frontend com Playwright;
+- retenção/arquivamento de mensagens e logs de IA para alto volume;
+- relatórios avançados de custo por tenant/conversa/operador/modelo.
+
+Esses itens não foram omitidos por descuido; foram deixados para uma etapa posterior para manter o escopo atual coeso e demonstrável.
 
 ## Como rodar
 
+### Backend
+
 ```bash
-# 1. Copiar variáveis de ambiente
-cp .env.example .env.local
-
-# 2. Instalar dependências
+cd myde-backend
 npm install
-
-# 3. Iniciar em desenvolvimento
+./scripts/dev/up-infra.ps1
+npm run db:migrate
+npm run check:db
+npm run db:seed
 npm run dev
 ```
 
-Acesse: **http://localhost:3000**
-
-### Validação
+Em outro terminal:
 
 ```bash
-npm run typecheck   # TypeScript sem emitir arquivos
-npm run lint        # ESLint
-npm run build       # Build de produção
+cd myde-backend
+npm run dev:worker
 ```
 
-A entrega está limpa nos três comandos.
+API local:
 
----
-
-## Variáveis de ambiente
-
-| Variável | Descrição |
-|---|---|
-| `NEXT_PUBLIC_API_BASE_URL` | URL base do backend Myde/Maude |
-
-O arquivo `.env.example` aponta por padrao para `http://localhost:8000`. Copie para `.env.local` — este arquivo **não deve ser commitado** (já está no `.gitignore`).
-
-`NEXT_PUBLIC_API_BASE_URL` é obrigatória. Se ausente, a aplicação falha explicitamente ao iniciar — sem fallback silencioso.
-
----
-
-## Scripts disponíveis
-
-| Script | Comando | Descrição |
-|---|---|---|
-| dev | `npm run dev` | Servidor de desenvolvimento |
-| build | `npm run build` | Build de produção |
-| start | `npm run start` | Servir o build de produção |
-| lint | `npm run lint` | ESLint |
-| typecheck | `npm run typecheck` | Verificação TypeScript (`tsc --noEmit`) |
-
----
-
-## Arquitetura
-
-### Estrutura de pastas
-
-```
-app/
-  layout.tsx              — Root layout (Server Component, fino)
-  page.tsx                — Entry point: apenas monta <InboxPage />
-  providers.tsx           — QueryClientProvider (Client Component)
-  globals.css             — Variáveis CSS Myde + reset Tailwind v4
-
-components/
-  ui/                     — Design system: componentes visuais puros, sem domínio
-    avatar.tsx
-    badge.tsx
-    button.tsx
-    card.tsx
-    empty-state.tsx
-    error-state.tsx
-    input.tsx
-    skeleton.tsx
-    spinner.tsx
-    textarea.tsx
-  shared/
-    app-shell.tsx         — Layout responsivo desktop/mobile
-
-modules/
-  inbox/
-    components/           — Componentes de domínio do inbox
-      inbox-page.tsx
-      inbox-layout.tsx
-      conversation-list.tsx
-      conversation-list-item.tsx
-      conversation-search.tsx
-      chat-panel.tsx
-      message-list.tsx
-      message-bubble.tsx
-      message-composer.tsx
-      ai-suggestion-button.tsx
-      no-conversation-selected.tsx
-    hooks/                — React Query por recurso (padrão use*Query / use*Mutation)
-      inbox-query-keys.ts   — Query keys centralizadas do domínio
-      use-me-query.ts
-      use-conversations-query.ts
-      use-conversation-messages-query.ts
-      use-ai-suggestion-mutation.ts
-    services/             — Transporte e rotas da API
-      inbox.endpoints.ts    — Endpoints centralizados do domínio
-      inbox.service.ts      — Funções de chamada HTTP
-    types/                — Contratos de domínio
-      inbox.types.ts
-    utils/
-      format-message-time.ts
-
-config/
-  env.ts                  — Env pública centralizada (única leitura de process.env)
-
-services/
-  http/
-    api-client.ts         — Instância Axios (consome config/env, sem process.env direto)
-    api-error.ts          — Normalização de erros da API
-
-utils/
-  cn.ts                   — Merge de classes Tailwind (clsx + tailwind-merge)
+```text
+http://localhost:8000
 ```
 
-Não há código herdado do starter: a aplicação consome exclusivamente a arquitetura
-em `services/http/` e `modules/inbox/`. Endpoints e query keys são centralizados por
-domínio, sem strings de rota ou arrays de chave espalhados pelos hooks.
+### Frontend
 
----
-
-## Separação de responsabilidades
-
-| Camada | Onde | Regra |
-|---|---|---|
-| Variáveis de ambiente | `config/env.ts` | Única leitura de `process.env` — sem `process.env` espalhado no código |
-| Transporte HTTP | `services/http/api-client.ts` | Única instância Axios — consome `config/env`, não lê `process.env` diretamente |
-| Rotas da API | `modules/inbox/services/inbox.endpoints.ts` | Endpoints centralizados — services não montam URLs com strings soltas |
-| Chamadas de API | `modules/inbox/services/inbox.service.ts` | Funções puras: recebem parâmetros, retornam tipos do domínio |
-| Query keys | `modules/inbox/hooks/inbox-query-keys.ts` | Fonte única das keys — hooks e mutations não duplicam arrays |
-| Cache e estado servidor | `modules/inbox/hooks/use-*` | React Query — queries e mutations por recurso |
-| Componentes de domínio | `modules/inbox/components/` | Orquestram hooks e componentes de UI |
-| Componentes visuais | `components/ui/` | Recebem props, não conhecem domínio nem API |
-| Contratos de tipo | `modules/inbox/types/inbox.types.ts` | Única fonte de verdade para os tipos do domínio |
-| Entry point | `app/page.tsx` | Um import, zero lógica |
-
-Padrão inspirado na arquitetura Rufus, adaptado ao escopo do desafio: sem over-engineering, sem abstrações prematuras.
-
----
-
-## Server Components vs Client Components
-
-**Server Components** (padrão no App Router):
-- `app/layout.tsx` — root layout, sem interação
-- `app/page.tsx` — entrada, apenas delega para `InboxPage`
-
-**Client Components** (`"use client"`):
-- Tudo em `modules/inbox/` e `components/`
-
-**Por quê o Inbox é majoritariamente client-side?**
-
-React Query e suas subscriptions de polling exigem um contexto de browser. A seleção de conversa, o estado de envio e o composer são interações contínuas que dependem de estado local. Não há ganho real em tentar isolar partes como Server Components nesse contexto — o custo de coordenação superaria o benefício.
-
----
-
-## Estratégia de dados (React Query)
-
-### Query keys
-
-Centralizadas em `modules/inbox/hooks/inbox-query-keys.ts` (`inboxQueryKeys`),
-consumidas pelos hooks e mutations — sem arrays duplicados:
-
-```typescript
-inboxQueryKeys.me                              // ["me"]
-inboxQueryKeys.conversations                   // ["conversations"]
-inboxQueryKeys.conversationMessages(id)        // ["conversation-messages", id]
+```bash
+cd myde-frontend
+npm install
+npm run dev
 ```
 
-### Polling
+Frontend local:
 
-| Query | Intervalo | Condição de ativação |
-|---|---|---|
-| `conversations` | 12 segundos | Sempre que o componente está montado |
-| `conversation-messages` | 5 segundos | Só quando `conversationId` não é `null` (`enabled: !!conversationId`) |
-
-Polling agressivo foi deliberadamente evitado. 12s e 5s são suficientes para inbox de suporte e não sobrecarregam a API real.
-
-### Configuração global do QueryClient
-
-```typescript
-{
-  staleTime: 5_000,         // Dados considerados frescos por 5s — evita refetch desnecessário
-  refetchOnWindowFocus: false,  // Sem refetch ao focar a janela
-  retry: 1,                 // Uma retentativa em falha — padrão 3 seria agressivo com polling
-}
+```text
+http://localhost:3000
 ```
 
----
+Para testar webhook real da Meta em desenvolvimento, um túnel como `cloudflared` pode ser usado apontando para `http://localhost:8000/webhook`.
 
-## Composer assistido
+## Comandos de validação
 
-O backend real ainda nao expõe envio outbound pela Meta neste modulo. Por isso o composer opera em modo assistido:
+### Backend
 
-1. Busca sugestao via `POST /ai/suggest`
-2. Permite editar o texto localmente
-3. Oferece copia rapida para atendimento humano
-
-O botao de envio permanece desabilitado ate o backend expor um endpoint real de outbound.
-
----
-
-## Sugestão de resposta com IA
-
-- Mutation separada (`use-ai-suggestion-mutation.ts`) — não toca o cache de mensagens
-- Ao receber a sugestão, preenche o `textarea` via callback (`onSuggestion`)
-- O atendente pode editar o texto antes de copiar — a sugestão é apenas ponto de partida
-- Erro da IA é exibido em tooltip isolado sobre o botão — o compositor e o chat continuam funcionando normalmente
-- O botão exibe spinner próprio durante a requisição sem bloquear a textarea
-
----
-
-## Polling e feedback operacional
-
-**Problemas endereçados:**
-
-- `isFetching && !isLoading` detecta refetch em background. A lista de conversas exibe uma barra azul de 2px no topo durante sincronização — feedback sem interromper a interação
-- `key={conversationId}` no `MessageList` força remontagem ao trocar de conversa, resetando o ref de scroll e evitando que mensagens de uma conversa sejam scrolladas sobre outra
-- Scroll usa `"instant"` na primeira renderização (posiciona sem animação) e `"smooth"` apenas em mensagens novas — evita o efeito de "pular" ao carregar uma conversa com histórico
-- `cancelQueries` em `onMutate` cancela tanto mensagens quanto conversas, evitando que um refetch em andamento sobreponha o estado otimista
-
----
-
-## UX e acessibilidade
-
-**Layout:**
-- Desktop: sidebar fixa (280-320px) + painel de chat adaptável
-- Mobile: lista visível sem conversa selecionada, chat ocupa tela inteira quando há conversa ativa — navegação por botão de voltar
-
-**Estados cobertos em todas as superfícies:**
-
-| Estado | Tratamento |
-|---|---|
-| Loading inicial | Skeleton animado proporcional ao conteúdo |
-| Refetch em background | Barra de sincronização discreta (não bloqueia) |
-| Erro de API | ErrorState com mensagem e botão de retry |
-| Vazio | EmptyState com mensagem contextual |
-| Envio outbound indisponível | Composer explica o estado atual do backend e mantém cópia manual |
-| Sugerindo IA | Spinner no botão IA, compositor editável |
-| Erro de sugestão IA | Tooltip isolado, chat inalterado |
-| Sem conversa selecionada | Tela de placeholder com instrução |
-
-**Acessibilidade implementada:**
-- `aria-label` em todos os botões sem texto visível
-- `aria-pressed` nos itens de conversa selecionados
-- `role="log" aria-live="polite"` no histórico de mensagens
-- `role="alert"` em mensagens de erro
-- Foco visível via `focus-visible:ring-*` nos elementos interativos
-
----
-
-## Decisões e trade-offs
-
-**Tailwind puro em vez de UI library (MUI, shadcn, Radix)**
-O design system foi construído do zero com ~10 componentes. Mantém controle total sobre a paleta Myde, elimina dependências pesadas e é suficiente para o escopo do desafio. shadcn/Radix seria justificável em produto com mais superfícies.
-
-**Polling em vez de WebSocket/SSE**
-A API fornecida é REST, sem endpoint de streaming. Polling a 5–12s é adequado para inbox de suporte e reduz complexidade de infraestrutura. Para produção com volume alto, SSE ou WebSocket seriam a evolução natural.
-
-**Sem autenticação real**
-O endpoint `/me` é consumido para exibir o tenant atual e suas capacidades. Não há fluxo de login/token neste módulo.
-
-**Backend local real**
-O fluxo esperado agora usa `myde-backend` local, com Postgres, Redis e webhook Meta reais.
-
-**React Query como única camada de estado servidor**
-Não foi usado Redux, Zustand nem Context para dados do servidor — React Query já resolve cache, polling, otimismo e invalidação. Estado de UI local (conversa selecionada, texto do composer) ficou em `useState` simples no componente mais próximo.
-
-**Endpoints e query keys centralizados por domínio**
-Rotas da API (`inbox.endpoints.ts`) e query keys (`inbox-query-keys.ts`) ficam em arquivos únicos do módulo inbox. Evita strings de rota e arrays de chave duplicados entre service, hooks e mutations, sem introduzir um router global ou abstração maior que o escopo exige.
-
----
-
-## O que faria com mais tempo
-
-**Qualidade e confiabilidade:**
-- Testes unitários dos hooks (`use-conversations-query`, `use-ai-suggestion-mutation`) com Vitest + Testing Library
-- Testes e2e do fluxo principal (selecionar conversa → enviar → rollback) com Playwright
-- Auditoria de acessibilidade com axe-core ou Lighthouse
-
-**Produto:**
-- Persistência da conversa selecionada na URL (`/inbox/[conversationId]`) — deep link e reload seguro
-- Scroll inteligente: parar de forçar scroll ao fundo se o usuário estiver lendo o histórico
-- Virtualização da lista de mensagens com TanStack Virtual para conversas longas
-- Paginação/cursor nos endpoints de mensagens e conversas
-- WebSocket ou SSE em substituição ao polling para latência real-time
-- Suporte a mensagens com mídia (imagem, áudio) assim que a API evoluir
-
-**Observabilidade:**
-- Error boundary global com logging estruturado
-- Métricas de frontend (Core Web Vitals, tempo de resposta percebido)
-
----
-
-## Contratos de API
-
-Base URL: variável `NEXT_PUBLIC_API_BASE_URL`
-
-```
-GET  /me
-     → Agent { id, name, role, capabilities }
-
-GET  /conversations
-     → Conversation[] (desc por lastMessageAt)
-
-GET  /conversations/:id/messages
-     → Message[] (asc por createdAt)
-
-POST /ai/suggest                    { conversationId: string }
-     → AiSuggestion { suggestion, source }
+```bash
+npm run typecheck
+npm run test
+npm run build
+curl http://localhost:8000/health
+curl http://localhost:8000/ready
 ```
 
-Padrão de erro: `{ "error": "mensagem descritiva" }` com status `400`, `401` ou `404`.
+### Frontend
 
----
+```bash
+npm run typecheck
+npm run lint
+npm run test
+npm run build
+```
 
-## Identidade visual
+## Conclusão
 
-| Token CSS | Valor |
-|---|---|
-| `--bg` | `#02060D` |
-| `--surface` | `#0B111C` |
-| `--surface-raised` | `#111827` |
-| `--border` | `#1F2A3D` |
-| `--accent` | `#1E80FF` |
-| `--text` | `#F8FAFC` |
-| `--text-muted` | `#7C8CA3` |
-
-Tokens definidos em `app/globals.css` via `@theme inline` do Tailwind v4, consumíveis como `bg-accent`, `text-text-muted`, etc.
-
----
-
-## Histórico de commits
-
-A implementação seguiu o padrão **Conventional Commits** com commits pequenos e rastreáveis — cada commit entrega uma camada ou funcionalidade isolada, validada com `typecheck + lint + build` antes do próximo. O histórico é auditável via `git log --oneline`.
+O Myde Inbox entrega o fluxo real de atendimento WhatsApp com IA em uma arquitetura fullstack coerente, validável e preparada para evolução. Os requisitos centrais dos desafios frontend e backend foram atendidos, e os reforços adicionais foram tratados como decisões de engenharia para tornar a solução mais confiável, auditável e próxima de um ambiente de produção.

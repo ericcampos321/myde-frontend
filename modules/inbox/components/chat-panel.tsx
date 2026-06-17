@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useConversationMessagesQuery } from "@/modules/inbox/hooks/use-conversation-messages-query";
 import { flattenMessagePages } from "@/modules/inbox/utils/flatten-message-pages";
 import { MessageList } from "./message-list";
@@ -18,6 +18,24 @@ interface ChatPanelProps {
   viewportSignal: number;
   onToggleNotificationSound: () => void;
   onBack: () => void;
+}
+
+const MOBILE_BACK_TRANSITION_MS = 220;
+
+function prefersReducedMotion(): boolean {
+  return (
+    typeof window !== "undefined" &&
+    typeof window.matchMedia === "function" &&
+    window.matchMedia("(prefers-reduced-motion: reduce)").matches
+  );
+}
+
+function isMobileViewport(): boolean {
+  return (
+    typeof window !== "undefined" &&
+    typeof window.matchMedia === "function" &&
+    window.matchMedia("(max-width: 639px)").matches
+  );
 }
 
 export function ChatPanel({
@@ -40,6 +58,8 @@ export function ChatPanel({
   const messages = flattenMessagePages(data?.pages);
   const [searchOpen, setSearchOpen] = useState(false);
   const [scrollAnchorSignal, setScrollAnchorSignal] = useState(0);
+  const [isLeaving, setIsLeaving] = useState(false);
+  const leaveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const subtitle = conversation
     ? conversation.unread > 0
       ? `${conversation.unread} mensagem${conversation.unread > 1 ? "s" : ""} não lida${conversation.unread > 1 ? "s" : ""}`
@@ -50,14 +70,51 @@ export function ChatPanel({
     setScrollAnchorSignal((current) => current + 1);
   }, []);
 
+  useEffect(() => {
+    setIsLeaving(false);
+  }, [conversationId]);
+
+  useEffect(() => {
+    return () => {
+      if (leaveTimeoutRef.current) {
+        clearTimeout(leaveTimeoutRef.current);
+      }
+    };
+  }, []);
+
+  const handleBackClick = useCallback(() => {
+    if (isLeaving) {
+      return;
+    }
+
+    if (!isMobileViewport() || prefersReducedMotion()) {
+      onBack();
+      return;
+    }
+
+    setIsLeaving(true);
+    leaveTimeoutRef.current = setTimeout(() => {
+      onBack();
+    }, MOBILE_BACK_TRANSITION_MS);
+  }, [isLeaving, onBack]);
+
   return (
-    <div className="relative flex h-full min-h-0 w-full min-w-0 overflow-hidden">
+    <div
+      className={[
+        "relative flex h-full min-h-0 w-full min-w-0 overflow-hidden transform-gpu sm:translate-x-0 sm:opacity-100",
+        "transition-transform transition-opacity ease-out will-change-transform sm:transition-none",
+        isLeaving
+          ? "translate-x-full opacity-[0.96] pointer-events-none duration-[220ms]"
+          : "translate-x-0 opacity-100 duration-[220ms]",
+      ].join(" ")}
+    >
       <section className="chat-bg flex min-h-0 min-w-0 flex-1 flex-col">
       <div className="flex h-[60px] shrink-0 items-center gap-3 bg-chat-header px-4">
         <Button
           variant="ghost"
           size="sm"
-          onClick={onBack}
+          onClick={handleBackClick}
+          disabled={isLeaving}
           className="sm:hidden -ml-1.5"
           aria-label="Voltar para lista"
         >

@@ -92,7 +92,7 @@ export function ContactList({
         </div>
       </div>
 
-      <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
+      <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain pb-[calc(84px+env(safe-area-inset-bottom,0px))] sm:pb-0">
         {shouldShowRecentSearches && (
           <RecentSearchesPanel
             items={recentSearches}
