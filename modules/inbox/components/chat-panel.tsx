@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useConversationMessagesQuery } from "@/modules/inbox/hooks/use-conversation-messages-query";
 import { flattenMessagePages } from "@/modules/inbox/utils/flatten-message-pages";
 import { MessageList } from "./message-list";
@@ -21,6 +21,8 @@ interface ChatPanelProps {
 }
 
 const MOBILE_BACK_TRANSITION_MS = 220;
+
+type MobileChatTransitionState = "entering" | "entered" | "leaving";
 
 function prefersReducedMotion(): boolean {
   return (
@@ -58,8 +60,11 @@ export function ChatPanel({
   const messages = flattenMessagePages(data?.pages);
   const [searchOpen, setSearchOpen] = useState(false);
   const [scrollAnchorSignal, setScrollAnchorSignal] = useState(0);
-  const [isLeaving, setIsLeaving] = useState(false);
+  const [transitionState, setTransitionState] =
+    useState<MobileChatTransitionState>("entered");
   const leaveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const enterFrameRef = useRef<number | null>(null);
+  const isLeaving = transitionState === "leaving";
   const subtitle = conversation
     ? conversation.unread > 0
       ? `${conversation.unread} mensagem${conversation.unread > 1 ? "s" : ""} não lida${conversation.unread > 1 ? "s" : ""}`
@@ -70,14 +75,42 @@ export function ChatPanel({
     setScrollAnchorSignal((current) => current + 1);
   }, []);
 
-  useEffect(() => {
-    setIsLeaving(false);
+  useLayoutEffect(() => {
+    if (enterFrameRef.current) {
+      cancelAnimationFrame(enterFrameRef.current);
+      enterFrameRef.current = null;
+    }
+    if (leaveTimeoutRef.current) {
+      clearTimeout(leaveTimeoutRef.current);
+      leaveTimeoutRef.current = null;
+    }
+
+    if (!isMobileViewport() || prefersReducedMotion()) {
+      setTransitionState("entered");
+      return;
+    }
+
+    setTransitionState("entering");
+    enterFrameRef.current = requestAnimationFrame(() => {
+      setTransitionState("entered");
+      enterFrameRef.current = null;
+    });
+
+    return () => {
+      if (enterFrameRef.current) {
+        cancelAnimationFrame(enterFrameRef.current);
+        enterFrameRef.current = null;
+      }
+    };
   }, [conversationId]);
 
   useEffect(() => {
     return () => {
       if (leaveTimeoutRef.current) {
         clearTimeout(leaveTimeoutRef.current);
+      }
+      if (enterFrameRef.current) {
+        cancelAnimationFrame(enterFrameRef.current);
       }
     };
   }, []);
@@ -92,9 +125,13 @@ export function ChatPanel({
       return;
     }
 
-    setIsLeaving(true);
+    setTransitionState("leaving");
+    if (leaveTimeoutRef.current) {
+      clearTimeout(leaveTimeoutRef.current);
+    }
     leaveTimeoutRef.current = setTimeout(() => {
       onBack();
+      leaveTimeoutRef.current = null;
     }, MOBILE_BACK_TRANSITION_MS);
   }, [isLeaving, onBack]);
 
@@ -102,10 +139,10 @@ export function ChatPanel({
     <div
       className={[
         "relative flex h-full min-h-0 w-full min-w-0 overflow-hidden transform-gpu sm:translate-x-0 sm:opacity-100",
-        "transition-transform transition-opacity ease-out will-change-transform sm:transition-none",
-        isLeaving
-          ? "translate-x-full opacity-[0.96] pointer-events-none duration-[220ms]"
-          : "translate-x-0 opacity-100 duration-[220ms]",
+        "transition-transform duration-[220ms] ease-out will-change-transform motion-reduce:translate-x-0 motion-reduce:transition-none sm:transition-none",
+        transitionState === "entered"
+          ? "translate-x-0"
+          : "translate-x-full pointer-events-none",
       ].join(" ")}
     >
       <section className="chat-bg flex min-h-0 min-w-0 flex-1 flex-col">
