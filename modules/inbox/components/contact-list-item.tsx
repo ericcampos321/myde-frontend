@@ -1,0 +1,98 @@
+"use client";
+
+import { ContactAvatar } from "./contact-avatar";
+import { cn } from "@/utils/cn";
+import { formatMessageTime } from "@/modules/inbox/utils/format-message-time";
+import type { Contact, Conversation } from "@/modules/inbox/types/inbox.types";
+
+interface ContactListItemProps {
+  contact: Contact;
+  conversation: Conversation | null;
+  isActive: boolean;
+  onOpenConversation: () => void;
+}
+
+export function ContactListItem({
+  contact,
+  conversation,
+  isActive,
+  onOpenConversation,
+}: ContactListItemProps) {
+  const canOpenConversation = Boolean(conversation);
+  const displayName = contact.profileName || contact.name;
+
+  return (
+    <button
+      type="button"
+      onClick={canOpenConversation ? onOpenConversation : undefined}
+      disabled={!canOpenConversation}
+      title={!canOpenConversation ? "Contato sem conversa ainda" : undefined}
+      className={cn(
+        "group block w-full px-3 py-1 text-left transition-colors duration-150 focus-visible:outline-none",
+        canOpenConversation
+          ? "cursor-pointer"
+          : "cursor-default bg-transparent text-text-muted/90 opacity-75"
+      )}
+    >
+      <div
+        className={cn(
+          "flex h-[72px] items-center gap-3 rounded-2xl px-3 transition-colors duration-200",
+          canOpenConversation
+            ? isActive
+              ? "bg-surface-active"
+              : "bg-transparent group-hover:bg-surface-raised group-focus-visible:bg-surface-raised"
+            : "bg-transparent"
+        )}
+      >
+        <ContactAvatar
+          name={displayName}
+          phone={contact.phone}
+          id={contact.id}
+          size="lg"
+          className="h-[49px] w-[49px]"
+        />
+
+        <div
+          className={cn(
+            "flex h-full min-w-0 flex-1 flex-col justify-center"
+          )}
+        >
+          <div className="flex items-baseline justify-between gap-2">
+            <span className="truncate text-[16px] font-normal leading-5 text-text">{displayName}</span>
+            <span
+              className={cn(
+                "shrink-0 text-[12px] tabular-nums",
+                isActive ? "font-medium text-accent" : "text-text-muted/80"
+              )}
+            >
+              {formatMessageTime(contact.updatedAt)}
+            </span>
+          </div>
+
+          <div className="mt-0.5 flex items-center justify-between gap-2">
+            <span
+              className={cn(
+                "truncate pr-2 text-[12.5px] leading-5",
+                canOpenConversation
+                  ? isActive
+                    ? "text-text/85"
+                    : "text-text-muted"
+                  : "text-text-muted/70"
+              )}
+            >
+              {contact.phone}
+            </span>
+            <span
+              className={cn(
+                "shrink-0 text-[10px] font-medium uppercase tracking-[0.08em]",
+                canOpenConversation ? "text-accent/65" : "text-text-muted/50"
+              )}
+            >
+              {canOpenConversation ? "Conversa" : "Sem conversa"}
+            </span>
+          </div>
+        </div>
+      </div>
+    </button>
+  );
+}
