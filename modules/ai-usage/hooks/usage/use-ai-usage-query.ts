@@ -1,9 +1,6 @@
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { fetchAiUsage } from "@/modules/ai-usage/services/ai-usage-api";
-import {
-  buildAiUsageQueryParams,
-  type AiUsageQueryParamsInput,
-} from "@/modules/ai-usage/utils/filters/ai-usage-query-params";
+import { buildAiUsageQueryParams, type AiUsageQueryParamsInput } from "@/modules/ai-usage/utils/filters/ai-usage-query-params";
 
 /** Busca o painel de uso da IA (read-only) via BFF `/api/ai-usage`. */
 export function useAiUsageQuery(params: AiUsageQueryParamsInput) {
